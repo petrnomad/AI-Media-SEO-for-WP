@@ -2,7 +2,7 @@
 Contributors: petrnomad
 Tags: seo, image seo, ai, openai, anthropic, google gemini, media library, alt text, accessibility
 Requires at least: 6.3
-Tested up to: 6.4
+Tested up to: 6.9
 Stable tag: 1.0.0
 Requires PHP: 8.1
 License: GPLv3
