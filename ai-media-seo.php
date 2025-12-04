@@ -3,19 +3,19 @@
  * AI Media SEO - WordPress Plugin
  *
  * @package     AIMediaSEO
- * @author      AI Media SEO
- * @copyright   2025 AI Media SEO
+ * @author      Petr Novák
+ * @copyright   2025 Petr Novák
  * @license     GPL-3.0-or-later
  *
  * @wordpress-plugin
  * Plugin Name:       AI Media SEO
- * Plugin URI:        https://aimediaseo.com
+ * Plugin URI:        https://petrnovak.com
  * Description:       Automatically generate SEO-optimized image metadata (ALT, caption, title, keywords) using AI providers (OpenAI, Anthropic, Google). Multilingual support via Polylang/WPML.
  * Version:           1.0.0
  * Requires at least: 6.3
  * Requires PHP:      8.1
- * Author:            AI Media SEO
- * Author URI:        https://aimediaseo.com
+ * Author:            Petr Novák
+ * Author URI:        https://petrnovak.com
  * License:           GPL v3 or later
  * License URI:       https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain:       ai-media-seo

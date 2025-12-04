@@ -1,207 +1,89 @@
 # AI Media SEO - WordPress Plugin
 
-Automatically generate SEO-optimized image metadata (ALT text, captions, titles, keywords) using AI providers (OpenAI, Anthropic, Google). Built with multilingual support for Polylang/WPML.
+**Automatically generate SEO-optimized image metadata (ALT text, captions, titles, keywords) using advanced AI models.**
 
-## Features
+AI Media SEO leverages the power of OpenAI (GPT-4 Vision), Anthropic (Claude 3), and Google (Gemini Pro Vision) to analyze your images and generate high-quality, context-aware metadata. This helps improve your website's accessibility and search engine rankings without manual effort.
 
-### Lite Version (Free)
-- ✅ ALT text generation
-- ✅ Single language support
-- ✅ Manual processing (button per image)
-- ✅ Daily limit: 25 images
-- ✅ Basic validation
-- ✅ Single provider configuration
+## 🚀 Features
 
-### Pro Version
-- ✅ ALT + Caption + Title + Keywords
-- ✅ Unlimited languages
-- ✅ Batch processing with queue
-- ✅ Auto-approve with score threshold
-- ✅ Playground for prompt testing
-- ✅ Multiple providers & fallback
-- ✅ Audit logs & history
-- ✅ WP-CLI commands
-- ✅ Smart context for unattached images
-- ✅ Collections & rules engine
+-   **AI-Powered Analysis**: Uses state-of-the-art vision models to understand image content.
+-   **Auto-Generated Metadata**:
+    -   **ALT Text**: Descriptive and accessible alternative text.
+    -   **Captions**: Engaging captions suitable for display.
+    -   **Titles**: Concise and factual titles.
+    -   **Keywords**: Relevant tags/keywords for internal search or SEO.
+-   **Multi-Provider Support**: Choose between OpenAI, Anthropic, or Google Gemini.
+-   **Multilingual**: Supports multiple languages (English, Czech, German, Slovak) and integrates with Polylang/WPML.
+-   **Bulk Processing**: Process your entire media library in the background using Action Scheduler.
+-   **Context Aware**: Takes into account the post title, categories, and tags where the image is used for more relevant results.
+-   **Smart Resizing**: Automatically resizes large images before sending to API to save costs and bandwidth.
+-   **Cost Estimation**: Tracks token usage and estimates costs for each analysis.
 
-## Requirements
+## 📋 Requirements
 
-- WordPress 6.3+
-- PHP 8.1-8.3
-- MySQL 5.7+ / MariaDB 10.3+
-- Imagick or GD library
+-   **WordPress**: 6.3 or higher
+-   **PHP**: 8.1 or higher
+-   **API Key**: An active API key from at least one provider (OpenAI, Anthropic, or Google).
 
-## Installation
+## 🛠️ Installation
 
-1. Upload the plugin files to `/wp-content/plugins/ai-media-seo/`
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Go to **AI Media > Settings** to configure your API keys
-4. Start analyzing your images!
+### Option 1: Manual Installation (Zip)
 
-## Configuration
+1.  Download the repository as a ZIP file.
+2.  Log in to your WordPress admin dashboard.
+3.  Go to **Plugins** > **Add New** > **Upload Plugin**.
+4.  Select the downloaded ZIP file and click **Install Now**.
+5.  Click **Activate**.
 
-### OpenAI Setup
+### Option 2: Composer (For Developers)
 
-1. Get your API key from [OpenAI Platform](https://platform.openai.com/)
-2. Navigate to **AI Media > Settings > Providers**
-3. Enter your OpenAI API key
-4. Select model (recommended: gpt-4o)
-5. Save settings
-
-### Quality Rules
-
-Configure validation rules in **Settings > Quality Rules**:
-
-- **ALT Text**: Max 125 characters, no forbidden phrases
-- **Caption**: 1-2 sentences, contextual
-- **Title**: 3-6 words, factual
-- **Keywords**: 3-6 relevant terms
-- **Auto-approve threshold**: Set minimum score for automatic approval
-
-## Usage
-
-### Single Image Processing
-
-1. Go to **Media Library**
-2. Click on an image
-3. Click **Generate AI Metadata** button
-4. Review the generated metadata
-5. Click **Approve** to apply
-
-### Batch Processing (Pro)
-
-1. Navigate to **AI Media > Library**
-2. Select multiple images
-3. Choose language
-4. Click **Analyze Selected**
-5. Review results in **Queue** page
-6. Bulk approve or reject
-
-### REST API
-
-```php
-// Analyze images
-POST /wp-json/ai-media/v1/analyze
-{
-  "attachment_ids": [123, 456],
-  "language": "cs"
-}
-
-// Approve metadata
-POST /wp-json/ai-media/v1/approve
-{
-  "job_id": 789,
-  "fields": ["alt", "caption", "title"]
-}
-
-// Get statistics
-GET /wp-json/ai-media/v1/stats
-```
-
-## WP-CLI Commands (Pro)
+If you are managing your WordPress site with Composer, you can install the plugin by adding it to your `composer.json` (assuming you have a custom repository setup or are cloning this into `wp-content/plugins`).
 
 ```bash
-# Scan for images missing ALT text
-wp ai-media scan --language=cs --missing=alt
-
-# Analyze specific images
-wp ai-media analyze --ids=1,2,3 --language=cs
-
-# Approve batch
-wp ai-media approve --batch-id=123
-
-# Get statistics
-wp ai-media stats --month=2025-01
-
-# Reset image metadata
-wp ai-media reset --attachment-id=456
+composer install
 ```
 
-## Hooks & Filters
+*Note: You must run `composer install` within the plugin directory to install dependencies (Action Scheduler) if you are cloning the repo directly.*
 
-### Actions
+## ⚙️ Configuration
 
-```php
-// Before analysis starts
-add_action( 'ai_media_before_analyze', function( $attachment_id, $language, $options ) {
-    // Custom logic
-}, 10, 3 );
+1.  Navigate to **Settings** > **AI Media SEO** in your WordPress admin.
+2.  **General Settings**:
+    -   Set your **Primary Language**.
+    -   Configure **Batch Size** and **Rate Limits** for background processing.
+3.  **Providers**:
+    -   Enter your API keys for the providers you wish to use (OpenAI, Anthropic, Google).
+    -   Select the specific model (e.g., `gpt-4o`, `claude-3-opus`, `gemini-pro-vision`).
+    -   Enable the provider.
+4.  **Quality Rules**:
+    -   Set minimum quality scores.
+    -   Define forbidden phrases for ALT text (e.g., "image of", "photo of").
 
-// After analysis completes
-add_action( 'ai_media_after_analyze', function( $result ) {
-    // Custom logic
-}, 10, 1 );
+## 💡 Usage
 
-// Before applying metadata
-add_action( 'ai_media_before_apply_metadata', function( $attachment_id, $language, $metadata ) {
-    // Custom logic
-}, 10, 3 );
+### Single Image Analysis
+1.  Go to **Media** > **Library**.
+2.  Click on an image to open the details modal (or use the list view).
+3.  Look for the **AI Media SEO** sidebar or action button.
+4.  Click **Analyze** to generate metadata.
+5.  Review the generated suggestions and click **Apply** to save them.
 
-// After applying metadata
-add_action( 'ai_media_after_apply_metadata', function( $attachment_id, $language, $metadata ) {
-    // Custom logic
-}, 10, 3 );
-```
+### Bulk Processing
+1.  Go to **Media** > **AI Media SEO Dashboard**.
+2.  View statistics about your library (Total images, Missing ALT text, etc.).
+3.  Start a bulk process to analyze images that are missing metadata.
+4.  The plugin will process images in the background. You can monitor progress on the dashboard.
 
-### Filters
+## 🤝 Contributing
 
-```php
-// Modify context before analysis
-add_filter( 'ai_media_context', function( $context, $attachment_id, $language ) {
-    $context['custom_field'] = 'Custom value';
-    return $context;
-}, 10, 3 );
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-// Modify OpenAI prompt
-add_filter( 'ai_media_openai_prompt', function( $prompt, $language, $context ) {
-    $prompt .= "\nAdditional instructions...";
-    return $prompt;
-}, 10, 3 );
-```
+1.  Fork the repository.
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
-## Troubleshooting
+## 📄 License
 
-### Images not processing
-
-1. Check your API key is valid
-2. Verify you haven't hit daily limits
-3. Check error logs in **AI Media > Logs**
-4. Ensure image file exists and is accessible
-
-### Poor quality results
-
-1. Lower auto-approve threshold in settings
-2. Provide better context (attach images to posts)
-3. Configure site topic in settings
-4. Use custom prompts (Pro)
-
-### Rate limiting
-
-1. Reduce batch size in settings
-2. Increase delay between requests
-3. Use multiple API keys with fallback (Pro)
-
-## Privacy & Data
-
-- **Your API keys** are stored encrypted in your WordPress database
-- **No data is sent** to our servers - all processing happens between your server and the AI provider
-- **Image analysis** is performed by the AI provider you configure
-- **Audit logs** are stored locally in your database
-
-## Support
-
-- Documentation: [https://docs.aimediaseo.com](https://docs.aimediaseo.com)
-- GitHub Issues: [https://github.com/aimediaseo/ai-media-seo](https://github.com/aimediaseo/ai-media-seo)
-- Support Email: support@aimediaseo.com
-
-## License
-
-This plugin is licensed under the GPL v3 or later.
-
-## Credits
-
-Developed by AI Media SEO Team
-
----
-
-**Note**: This plugin requires an API key from OpenAI, Anthropic, or Google. API usage costs are your responsibility.
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
