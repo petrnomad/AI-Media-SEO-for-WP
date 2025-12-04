@@ -1,0 +1,88 @@
+/* Settings Styles */
+
+.ai-media-settings {
+	max-width: 900px;
+	margin: 20px 0;
+}
+
+.ai-media-settings-section {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	padding: 20px;
+	margin-bottom: 20px;
+	border-radius: 4px;
+}
+
+.ai-media-settings-section h2 {
+	margin-top: 0;
+	margin-bottom: 20px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #eee;
+	font-size: 18px;
+}
+
+.ai-media-form-field {
+	margin-bottom: 20px;
+}
+
+.ai-media-form-field:last-child {
+	margin-bottom: 0;
+}
+
+.ai-media-form-field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 8px;
+	color: #1d2327;
+}
+
+.ai-media-form-field input[type="text"],
+.ai-media-form-field input[type="password"],
+.ai-media-form-field input[type="number"],
+.ai-media-form-field textarea,
+.ai-media-form-field select {
+	width: 100%;
+	max-width: 500px;
+	padding: 8px 12px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.ai-media-form-field input[type="number"] {
+	max-width: 150px;
+}
+
+.ai-media-form-field textarea {
+	max-width: 700px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+.ai-media-form-field .description {
+	margin-top: 6px;
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.ai-media-form-field .description a {
+	color: #2271b1;
+	text-decoration: none;
+}
+
+.ai-media-form-field .description a:hover {
+	text-decoration: underline;
+}
+
+.ai-media-settings-footer {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	padding: 20px;
+	border-radius: 4px;
+	text-align: right;
+}
+
+.ai-media-settings-footer .button-large {
+	padding: 12px 24px;
+	font-size: 14px;
+}

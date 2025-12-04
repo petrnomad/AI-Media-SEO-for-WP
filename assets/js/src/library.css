@@ -1,0 +1,141 @@
+/* Media Library Styles */
+
+.ai-media-library {
+	margin-top: 20px;
+}
+
+.ai-media-filters {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 20px;
+	padding: 15px;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.ai-media-filter-actions {
+	display: flex;
+	gap: 10px;
+	margin-left: auto;
+}
+
+.ai-media-row {
+	border-bottom: 1px solid #dcdcde;
+	padding: 10px;
+}
+
+.ai-media-row-inner {
+	display: flex;
+	align-items: center;
+	gap: 15px;
+	background: #fff;
+	padding: 10px;
+	border-radius: 4px;
+}
+
+.ai-media-row-inner:hover {
+	background: #f6f7f7;
+}
+
+.ai-media-row input[type="checkbox"] {
+	margin: 0;
+	flex-shrink: 0;
+}
+
+.ai-media-thumbnail {
+	width: 80px;
+	height: 80px;
+	flex-shrink: 0;
+	background: #f0f0f1;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.ai-media-thumbnail img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: cover;
+}
+
+.ai-media-details {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.ai-media-field {
+	display: flex;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.ai-media-field strong {
+	color: #1d2327;
+	min-width: 60px;
+}
+
+.ai-media-field span {
+	color: #50575e;
+}
+
+.ai-media-meta {
+	display: flex;
+	gap: 15px;
+	font-size: 12px;
+}
+
+.ai-media-score {
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-weight: 500;
+}
+
+.ai-media-score-high {
+	background: #d5f2e3;
+	color: #00a32a;
+}
+
+.ai-media-score-medium {
+	background: #f0f6fc;
+	color: #2271b1;
+}
+
+.ai-media-score-low {
+	background: #fcf0f1;
+	color: #d63638;
+}
+
+.ai-media-language {
+	text-transform: uppercase;
+	color: #646970;
+	font-weight: 500;
+}
+
+.ai-media-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	flex-shrink: 0;
+}
+
+.ai-media-actions button {
+	white-space: nowrap;
+}
+
+.ai-media-loading,
+.ai-media-empty {
+	padding: 60px 20px;
+	text-align: center;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	color: #646970;
+	font-size: 14px;
+}

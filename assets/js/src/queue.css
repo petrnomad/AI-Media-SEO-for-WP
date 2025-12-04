@@ -1,0 +1,212 @@
+/* Queue Styles */
+
+.ai-media-queue {
+	margin-top: 20px;
+}
+
+.ai-media-queue-status-section {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.ai-media-queue-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid #eee;
+}
+
+.ai-media-queue-header h2 {
+	margin: 0;
+}
+
+.ai-media-queue-controls {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+}
+
+.ai-media-queue-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 15px;
+}
+
+.ai-media-status-card {
+	display: flex;
+	align-items: center;
+	gap: 15px;
+	padding: 20px;
+	border-radius: 8px;
+	border: 2px solid;
+}
+
+.ai-media-status-card-blue {
+	background: #f0f6fc;
+	border-color: #2271b1;
+}
+
+.ai-media-status-card-green {
+	background: #d5f2e3;
+	border-color: #00a32a;
+}
+
+.ai-media-status-card-red {
+	background: #fcf0f1;
+	border-color: #d63638;
+}
+
+.ai-media-status-card-icon {
+	font-size: 32px;
+}
+
+.ai-media-status-card-value {
+	font-size: 28px;
+	font-weight: bold;
+	line-height: 1;
+}
+
+.ai-media-status-card-value.pulse {
+	animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.6; }
+}
+
+.ai-media-status-card-label {
+	font-size: 12px;
+	text-transform: uppercase;
+	font-weight: 600;
+	color: #646970;
+	margin-top: 5px;
+}
+
+/* Rate Limits */
+.ai-media-rate-limits {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.ai-media-rate-limits h3 {
+	margin-top: 0;
+	margin-bottom: 15px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #eee;
+}
+
+.ai-media-rate-limits-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 15px;
+}
+
+.ai-media-rate-limit-card {
+	padding: 15px;
+	background: #f6f7f7;
+	border-radius: 6px;
+}
+
+.ai-media-rate-limit-card h4 {
+	margin: 0 0 10px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.ai-media-rate-limit-bar {
+	height: 8px;
+	background: #dcdcde;
+	border-radius: 4px;
+	overflow: hidden;
+	margin-bottom: 8px;
+}
+
+.ai-media-rate-limit-fill {
+	height: 100%;
+	background: #2271b1;
+	transition: width 0.3s ease;
+}
+
+.ai-media-rate-limit-text {
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+	color: #50575e;
+}
+
+.ai-media-rate-limit-remaining {
+	color: #2271b1;
+	font-weight: 600;
+}
+
+.ai-media-rate-limit-delay {
+	margin-top: 5px;
+	padding: 4px 8px;
+	background: #fcf0f1;
+	color: #d63638;
+	font-size: 11px;
+	font-weight: 600;
+	border-radius: 3px;
+	display: inline-block;
+}
+
+/* Pending Jobs Table */
+.ai-media-pending-jobs {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.ai-media-pending-jobs h3 {
+	margin-top: 0;
+	margin-bottom: 15px;
+}
+
+.ai-media-pending-jobs table {
+	margin-top: 0;
+}
+
+.ai-media-status {
+	padding: 3px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.ai-media-status-pending {
+	background: #f0f6fc;
+	color: #2271b1;
+}
+
+.ai-media-status-processing {
+	background: #d5f2e3;
+	color: #00a32a;
+}
+
+.ai-media-status-failed {
+	background: #fcf0f1;
+	color: #d63638;
+}
+
+.ai-media-empty {
+	padding: 60px 20px;
+	text-align: center;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	color: #646970;
+	font-size: 14px;
+}
