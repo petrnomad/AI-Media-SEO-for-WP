@@ -9,7 +9,7 @@
  *
  * @wordpress-plugin
  * Plugin Name:       AI Media SEO
- * Plugin URI:        https://petrnovak.com
+ * Plugin URI:        https://github.com/petrnomad/AI-Media-SEO-for-WP
  * Description:       Automatically generate SEO-optimized image metadata (ALT, caption, title, keywords) using AI providers (OpenAI, Anthropic, Google). Multilingual support via Polylang/WPML.
  * Version:           1.0.0
  * Requires at least: 6.3
