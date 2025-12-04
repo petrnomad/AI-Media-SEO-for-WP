@@ -184,6 +184,93 @@ class ImageAnalysisController extends WP_REST_Controller {
 				),
 			)
 		);
+
+		// Bulk update status.
+		register_rest_route(
+			$this->namespace,
+			'/bulk-status',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'bulk_update_status' ),
+					'permission_callback' => array( $this, 'check_settings_permission' ),
+					'args'                => array(
+						'attachment_ids' => array(
+							'required'          => true,
+							'type'              => 'array',
+							'items'             => array(
+								'type' => 'integer',
+							),
+							'sanitize_callback' => function( $ids ) {
+								return array_map( 'absint', $ids );
+							},
+						),
+						'status' => array(
+							'required'          => true,
+							'type'              => 'string',
+							'enum'              => array( 'pending', 'processed', 'approved' ),
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+					),
+				),
+			)
+		);
+
+		// FÁZE 3: Background Batch Processing Endpoints.
+
+		// Enqueue batch for background processing.
+		register_rest_route(
+			$this->namespace,
+			'/batch-enqueue',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'batch_enqueue' ),
+					'permission_callback' => array( $this, 'check_analyze_permission' ),
+					'args'                => $this->get_batch_enqueue_args(),
+				),
+			)
+		);
+
+		// Get batch status.
+		register_rest_route(
+			$this->namespace,
+			'/batch-status/(?P<batch_id>[a-zA-Z0-9_.]+)',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'batch_status' ),
+					'permission_callback' => array( $this, 'check_analyze_permission' ),
+					'args'                => array(
+						'batch_id' => array(
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+					),
+				),
+			)
+		);
+
+		// Cancel batch.
+		register_rest_route(
+			$this->namespace,
+			'/batch-cancel/(?P<batch_id>[a-zA-Z0-9_.]+)',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'batch_cancel' ),
+					'permission_callback' => array( $this, 'check_analyze_permission' ),
+					'args'                => array(
+						'batch_id' => array(
+							'required'          => true,
+							'type'              => 'string',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -195,7 +282,7 @@ class ImageAnalysisController extends WP_REST_Controller {
 	 */
 	public function analyze_images( WP_REST_Request $request ) {
 		$attachment_ids = $request->get_param( 'attachment_ids' );
-		$language       = $request->get_param( 'language' ) ?: $this->language_detector->get_current_language();
+		$language_param = $request->get_param( 'language' ); // Explicit language from request (optional).
 
 		if ( empty( $attachment_ids ) || ! is_array( $attachment_ids ) ) {
 			return new WP_Error(
@@ -225,6 +312,11 @@ class ImageAnalysisController extends WP_REST_Controller {
 		$errors = array();
 
 		foreach ( $attachment_ids as $attachment_id ) {
+			// ALWAYS detect language from attachment (ignore Polylang/WPML middleware parameters).
+			// Our frontend NEVER sends language parameter - any language param comes from
+			// multilingual plugin middleware (Polylang, WPML) and should be ignored.
+			$language = $this->language_detector->get_attachment_language( (int) $attachment_id );
+
 			// Set status to processing.
 			update_post_meta( $attachment_id, '_ai_media_status', 'processing' );
 
@@ -314,7 +406,8 @@ class ImageAnalysisController extends WP_REST_Controller {
 	public function batch_analyze( WP_REST_Request $request ) {
 		$mode       = $request->get_param( 'mode' ) ?: 'selected';
 		$ids        = $request->get_param( 'attachment_ids' ) ?: array();
-		$language   = $request->get_param( 'language' ) ?: $this->language_detector->get_current_language();
+		// Note: Language is determined per-attachment in process_single(), not here.
+		$language   = $request->get_param( 'language' ); // Optional explicit language override.
 
 		$attachment_ids = array();
 
@@ -384,9 +477,12 @@ class ImageAnalysisController extends WP_REST_Controller {
 	 */
 	public function process_single( WP_REST_Request $request ) {
 		$attachment_id    = $request->get_param( 'attachment_id' );
-		$language         = $request->get_param( 'language' ) ?: $this->language_detector->get_current_language();
+		$language_param   = $request->get_param( 'language' ); // Optional explicit language.
 		$auto_apply       = $request->get_param( 'auto_apply' );
 		$force_reprocess  = $request->get_param( 'force_reprocess' );
+
+		// ALWAYS detect language from attachment (ignore Polylang/WPML middleware parameters).
+		$language = $this->language_detector->get_attachment_language( (int) $attachment_id );
 
 		// Default auto_apply to true if not specified.
 		if ( null === $auto_apply ) {
@@ -446,6 +542,12 @@ class ImageAnalysisController extends WP_REST_Controller {
 			$processing_time = microtime( true ) - $start_time;
 
 			if ( $result['success'] ) {
+				// Get attachment data for thumbnail URL and alt text
+				$attachment = get_post( $attachment_id );
+				$attachment_url = wp_get_attachment_url( $attachment_id );
+				$thumbnail_url = wp_get_attachment_image_src( $attachment_id, 'thumbnail' );
+				$alt_text = get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
+
 				$response_data = array(
 					'success'         => true,
 					'attachment_id'   => $attachment_id,
@@ -453,6 +555,10 @@ class ImageAnalysisController extends WP_REST_Controller {
 					'metadata'        => $result['metadata'] ?? array(),
 					'score'           => $result['final_score'] ?? 0.0,
 					'processing_time' => round( $processing_time, 2 ),
+					'provider'        => $result['provider'] ?? 'unknown',
+					'thumbnail_url'   => $thumbnail_url ? $thumbnail_url[0] : $attachment_url,
+					'source_url'      => $attachment_url,
+					'alt_text'        => $alt_text,
 				);
 
 				// Add cost data if available.
@@ -504,8 +610,11 @@ class ImageAnalysisController extends WP_REST_Controller {
 	 */
 	public function regenerate_metadata( WP_REST_Request $request ) {
 		$attachment_id    = $request->get_param( 'attachment_id' );
-		$language         = $request->get_param( 'language' ) ?: $this->language_detector->get_current_language();
+		$language_param   = $request->get_param( 'language' ); // Optional explicit language.
 		$context_override = $request->get_param( 'context_override' ) ?: array();
+
+		// ALWAYS detect language from attachment (ignore Polylang/WPML middleware parameters).
+		$language = $this->language_detector->get_attachment_language( (int) $attachment_id );
 
 		if ( empty( $attachment_id ) ) {
 			return new WP_Error(
@@ -617,6 +726,300 @@ class ImageAnalysisController extends WP_REST_Controller {
 				'success' => true,
 				'message' => __( 'Status updated successfully.', 'ai-media-seo' ),
 				'status'  => $status,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Bulk update status for multiple attachments.
+	 *
+	 * @since 2.2.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error Response object.
+	 */
+	public function bulk_update_status( WP_REST_Request $request ) {
+		$attachment_ids = $request->get_param( 'attachment_ids' );
+		$status         = $request->get_param( 'status' );
+
+		// Validate inputs.
+		if ( empty( $attachment_ids ) || ! is_array( $attachment_ids ) ) {
+			return new WP_Error(
+				'invalid_params',
+				__( 'Attachment IDs array is required.', 'ai-media-seo' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! in_array( $status, array( 'pending', 'processed', 'approved' ), true ) ) {
+			return new WP_Error(
+				'invalid_status',
+				__( 'Invalid status. Must be: pending, processed, or approved.', 'ai-media-seo' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$updated = 0;
+		$errors  = array();
+
+		// Update each attachment.
+		foreach ( $attachment_ids as $attachment_id ) {
+			$attachment_id = absint( $attachment_id );
+
+			// Validate attachment exists and is an image.
+			$attachment = get_post( $attachment_id );
+			if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
+				$errors[] = sprintf(
+					// translators: %d is the attachment ID.
+					__( 'Invalid attachment ID: %d', 'ai-media-seo' ),
+					$attachment_id
+				);
+				continue;
+			}
+
+			// Handle status-specific metadata changes.
+			if ( 'approved' === $status ) {
+				// Move draft metadata to real fields.
+				$this->approve_draft_metadata( $attachment_id );
+			} elseif ( 'processed' === $status ) {
+				// Move real metadata to draft fields (for manual review).
+				$this->move_to_draft_metadata( $attachment_id );
+			} elseif ( 'pending' === $status ) {
+				// Clear all metadata when resetting to pending.
+				$this->clear_all_metadata( $attachment_id );
+			}
+
+			// Update status.
+			update_post_meta( $attachment_id, '_ai_media_status', $status );
+			$updated++;
+		}
+
+		$message = sprintf(
+			// translators: %1$d is the number of updated attachments, %2$s is the status.
+			_n(
+				'Successfully updated %1$d attachment to %2$s status.',
+				'Successfully updated %1$d attachments to %2$s status.',
+				$updated,
+				'ai-media-seo'
+			),
+			$updated,
+			$status
+		);
+
+		if ( ! empty( $errors ) ) {
+			$message .= ' ' . sprintf(
+				// translators: %d is the number of errors.
+				_n(
+					'%d error occurred.',
+					'%d errors occurred.',
+					count( $errors ),
+					'ai-media-seo'
+				),
+				count( $errors )
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => $message,
+				'updated' => $updated,
+				'errors'  => $errors,
+				'status'  => $status,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Enqueue batch for background processing.
+	 *
+	 * FÁZE 3: Background Batch Processing.
+	 *
+	 * @since 2.2.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error Response object.
+	 */
+	public function batch_enqueue( WP_REST_Request $request ) {
+		$mode           = $request->get_param( 'mode' ) ?: 'selected';
+		$ids            = $request->get_param( 'attachment_ids' ) ?: array();
+		$language       = $request->get_param( 'language' ); // Optional explicit language override.
+		$auto_apply     = $request->get_param( 'auto_apply' ) ?? true;
+
+		// Get attachment IDs based on mode.
+		$attachment_ids = array();
+
+		switch ( $mode ) {
+			case 'selected':
+				if ( empty( $ids ) || ! is_array( $ids ) ) {
+					return new WP_Error(
+						'invalid_params',
+						__( 'Attachment IDs are required for selected mode.', 'ai-media-seo' ),
+						array( 'status' => 400 )
+					);
+				}
+				$attachment_ids = array_map( 'absint', $ids );
+				break;
+
+			case 'missing_metadata':
+				$attachment_ids = $this->get_attachments_missing_metadata();
+				break;
+
+			case 'all':
+				$attachment_ids = $this->get_all_image_attachments();
+				break;
+
+			default:
+				return new WP_Error(
+					'invalid_mode',
+					__( 'Invalid batch mode. Use: selected, missing_metadata, or all.', 'ai-media-seo' ),
+					array( 'status' => 400 )
+				);
+		}
+
+		if ( empty( $attachment_ids ) ) {
+			return new WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => __( 'No images found to process.', 'ai-media-seo' ),
+					'total'   => 0,
+				),
+				200
+			);
+		}
+
+		// Check if Action Scheduler is available.
+		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
+			return new WP_Error(
+				'action_scheduler_unavailable',
+				__( 'Background processing is not available. Action Scheduler is not loaded.', 'ai-media-seo' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		// Enqueue batch.
+		$queue = new \AIMediaSEO\Queue\BackgroundQueue();
+		$batch_id = $queue->enqueue_batch(
+			$attachment_ids,
+			array(
+				'language'   => $language,
+				'auto_apply' => $auto_apply,
+			)
+		);
+
+		if ( empty( $batch_id ) ) {
+			return new WP_Error(
+				'enqueue_failed',
+				__( 'Failed to enqueue batch for processing.', 'ai-media-seo' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success'        => true,
+				'batch_id'       => $batch_id,
+				'total'          => count( $attachment_ids ),
+				'message'        => sprintf(
+					/* translators: %d: number of images */
+					__( 'Batch enqueued successfully. %d images will be processed in the background.', 'ai-media-seo' ),
+					count( $attachment_ids )
+				),
+				'estimated_time' => count( $attachment_ids ) * 3, // 3 seconds per image estimate.
+			),
+			200
+		);
+	}
+
+	/**
+	 * Get batch status.
+	 *
+	 * FÁZE 3: Background Batch Processing.
+	 *
+	 * @since 2.2.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error Response object.
+	 */
+	public function batch_status( WP_REST_Request $request ) {
+		$batch_id = $request->get_param( 'batch_id' );
+
+		if ( empty( $batch_id ) ) {
+			return new WP_Error(
+				'invalid_params',
+				__( 'Batch ID is required.', 'ai-media-seo' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$queue  = new \AIMediaSEO\Queue\BackgroundQueue();
+		$status = $queue->get_batch_status( $batch_id );
+
+		if ( ! $status ) {
+			return new WP_Error(
+				'batch_not_found',
+				__( 'Batch not found. It may have expired (batches are kept for 7 days).', 'ai-media-seo' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Calculate progress percentage.
+		$progress = 0;
+		if ( $status['total'] > 0 ) {
+			$progress = round( ( $status['processed'] / $status['total'] ) * 100, 1 );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success'      => true,
+				'batch_id'     => $batch_id,
+				'status'       => $status['status'],
+				'total'        => $status['total'],
+				'processed'    => $status['processed'],
+				'success'      => $status['success'],
+				'failed'       => $status['failed'],
+				'progress'     => $progress,
+				'started_at'   => $status['started_at'],
+				'completed_at' => $status['completed_at'],
+			),
+			200
+		);
+	}
+
+	/**
+	 * Cancel batch processing.
+	 *
+	 * FÁZE 3: Background Batch Processing.
+	 *
+	 * @since 2.2.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error Response object.
+	 */
+	public function batch_cancel( WP_REST_Request $request ) {
+		$batch_id = $request->get_param( 'batch_id' );
+
+		if ( empty( $batch_id ) ) {
+			return new WP_Error(
+				'invalid_params',
+				__( 'Batch ID is required.', 'ai-media-seo' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$queue   = new \AIMediaSEO\Queue\BackgroundQueue();
+		$success = $queue->cancel_batch( $batch_id );
+
+		if ( ! $success ) {
+			return new WP_Error(
+				'cancel_failed',
+				__( 'Failed to cancel batch.', 'ai-media-seo' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'message' => __( 'Batch cancelled successfully.', 'ai-media-seo' ),
 			),
 			200
 		);
@@ -765,6 +1168,46 @@ class ImageAnalysisController extends WP_REST_Controller {
 				'required' => false,
 				'type'     => 'object',
 				'default'  => array(),
+			),
+		);
+	}
+
+	/**
+	 * Get batch-enqueue endpoint arguments.
+	 *
+	 * FÁZE 3: Background Batch Processing.
+	 *
+	 * @since 2.2.0
+	 * @return array Arguments schema.
+	 */
+	private function get_batch_enqueue_args(): array {
+		return array(
+			'mode' => array(
+				'required'          => false,
+				'type'              => 'string',
+				'default'           => 'selected',
+				'enum'              => array( 'selected', 'missing_metadata', 'all' ),
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'attachment_ids' => array(
+				'required' => false,
+				'type'     => 'array',
+				'default'  => array(),
+				'items'    => array(
+					'type' => 'integer',
+				),
+			),
+			'language' => array(
+				'required'          => false,
+				'type'              => 'string',
+				'default'           => $this->language_detector->get_current_language(),
+				'sanitize_callback' => 'sanitize_text_field',
+			),
+			'auto_apply' => array(
+				'required'          => false,
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
 			),
 		);
 	}
@@ -972,6 +1415,8 @@ class ImageAnalysisController extends WP_REST_Controller {
 	/**
 	 * Get attachments missing metadata.
 	 *
+	 * Selects images that are missing ALT text, Caption, Title, or where Title matches the filename.
+	 *
 	 * @since 1.0.0
 	 * @return array Array of attachment IDs.
 	 */
@@ -979,21 +1424,51 @@ class ImageAnalysisController extends WP_REST_Controller {
 		global $wpdb;
 
 		$query = "
-			SELECT p.ID
+			SELECT DISTINCT p.ID
 			FROM {$wpdb->posts} p
+			LEFT JOIN {$wpdb->postmeta} pm_file ON pm_file.post_id = p.ID AND pm_file.meta_key = '_wp_attached_file'
 			WHERE p.post_type = 'attachment'
 			AND p.post_mime_type LIKE 'image/%'
 			AND (
+				-- Missing ALT text
 				NOT EXISTS (
 					SELECT 1 FROM {$wpdb->postmeta} pm
 					WHERE pm.post_id = p.ID
 					AND pm.meta_key = '_wp_attachment_image_alt'
 					AND pm.meta_value != ''
 				)
-				OR NOT EXISTS (
-					SELECT 1 FROM {$wpdb->posts} pc
-					WHERE pc.ID = p.ID
-					AND pc.post_excerpt != ''
+				-- Missing Caption
+				OR p.post_excerpt = ''
+				OR p.post_excerpt IS NULL
+				-- Missing or empty Title
+				OR p.post_title = ''
+				OR p.post_title IS NULL
+				-- Title matches filename (normalized comparison)
+				OR (
+					pm_file.meta_value IS NOT NULL
+					AND p.post_title IS NOT NULL
+					AND p.post_title != ''
+					AND LOWER(
+						TRIM(
+							REPLACE(
+								REPLACE(
+									REPLACE(p.post_title, '-', ' '),
+								'_', ' '),
+							'  ', ' ')
+						)
+					) = LOWER(
+						TRIM(
+							REPLACE(
+								REPLACE(
+									REPLACE(
+										SUBSTRING_INDEX(
+											SUBSTRING_INDEX(pm_file.meta_value, '/', -1),
+										'.', 1),
+									'-', ' '),
+								'_', ' '),
+							'  ', ' ')
+						)
+					)
 				)
 			)
 			ORDER BY p.post_date DESC

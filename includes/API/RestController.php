@@ -50,6 +50,7 @@ class RestController extends WP_REST_Controller {
 			'settings'       => new SettingsController(),
 			'costs'          => new CostController(),
 			'media_library'  => new MediaLibraryController(),
+			'playground'     => new PlaygroundController(),
 		);
 	}
 

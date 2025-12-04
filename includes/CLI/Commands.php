@@ -12,7 +12,7 @@
 namespace AIMediaSEO\CLI;
 
 use AIMediaSEO\Providers\ProviderFactory;
-use AIMediaSEO\Queue\QueueManager;
+use AIMediaSEO\Queue\ProcessingSynchronizer;
 use AIMediaSEO\Storage\MetadataStore;
 use AIMediaSEO\Multilingual\LanguageDetector;
 
@@ -31,11 +31,11 @@ class Commands {
 	private $provider_factory;
 
 	/**
-	 * Queue manager.
+	 * Processing synchronizer.
 	 *
-	 * @var QueueManager
+	 * @var ProcessingSynchronizer
 	 */
-	private $queue_manager;
+	private $synchronizer;
 
 	/**
 	 * Metadata store.
@@ -58,7 +58,7 @@ class Commands {
 	 */
 	public function __construct() {
 		$this->provider_factory  = new ProviderFactory();
-		$this->queue_manager     = new QueueManager();
+		$this->synchronizer      = new ProcessingSynchronizer();
 		$this->metadata_store    = new MetadataStore();
 		$this->language_detector = new LanguageDetector();
 	}
@@ -182,17 +182,60 @@ class Commands {
 		}
 
 		$total = count( $attachment_ids );
+
+		if ( empty( $attachment_ids ) ) {
+			\WP_CLI::warning( 'No images found to analyze.' );
+			return;
+		}
+
 		\WP_CLI::line( sprintf( 'Analyzing %d images...', $total ) );
 
-		// Enqueue batch.
+		// Prepare options.
 		$options = array();
 		if ( $provider ) {
 			$options['provider'] = $provider;
 		}
 
-		$batch_id = $this->queue_manager->enqueue_batch( $attachment_ids, $language, $options );
+		// Process batch synchronously with progress bar.
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Processing images', $total );
 
-		\WP_CLI::success( sprintf( 'Batch %s enqueued. Processing will start automatically.', $batch_id ) );
+		$results = array(
+			'success' => array(),
+			'failed'  => array(),
+		);
+
+		foreach ( $attachment_ids as $attachment_id ) {
+			$result = $this->synchronizer->process_single( $attachment_id, $language, $options );
+
+			if ( $result['success'] ) {
+				$results['success'][] = $attachment_id;
+			} else {
+				$results['failed'][] = $attachment_id;
+			}
+
+			$progress->tick();
+		}
+
+		$progress->finish();
+
+		// Show results.
+		\WP_CLI::line( '' );
+		\WP_CLI::success( sprintf(
+			'Processing complete! Success: %d, Failed: %d',
+			count( $results['success'] ),
+			count( $results['failed'] )
+		) );
+
+		if ( ! empty( $results['failed'] ) ) {
+			\WP_CLI::line( '' );
+			\WP_CLI::warning( sprintf( 'Failed to process %d images:', count( $results['failed'] ) ) );
+			foreach ( array_slice( $results['failed'], 0, 10 ) as $failed_id ) {
+				\WP_CLI::line( sprintf( '  - ID %d: %s', $failed_id, basename( get_attached_file( $failed_id ) ) ) );
+			}
+			if ( count( $results['failed'] ) > 10 ) {
+				\WP_CLI::line( sprintf( '  ... and %d more', count( $results['failed'] ) - 10 ) );
+			}
+		}
 	}
 
 	/**

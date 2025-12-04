@@ -64,13 +64,13 @@ class MediaLibrary {
 	 * @since 1.0.0
 	 */
 	public function add_submenu_page() {
-		$hook = add_submenu_page(
-			'ai-media-seo',
-			__( 'Library', 'ai-media-seo' ),
-			__( 'Library', 'ai-media-seo' ),
+		$hook = add_media_page(
+			__( 'AI Library', 'ai-media-seo' ),
+			__( 'AI Library', 'ai-media-seo' ),
 			'upload_files',
 			'ai-media-library',
-			array( $this, 'render_page' )
+			array( $this, 'render_page' ),
+			0
 		);
 
 		// Add screen options.
@@ -107,12 +107,12 @@ class MediaLibrary {
 	 */
 	public function render_column_screen_options( $screen_settings, $screen ) {
 		// Only add to our media library page.
-		if ( 'ai-media_page_ai-media-library' !== $screen->id ) {
+		if ( 'media_page_ai-media-library' !== $screen->id ) {
 			return $screen_settings;
 		}
 
 		$user           = get_current_user_id();
-		$hidden_columns = get_user_meta( $user, 'manageai-media_page_ai-media-libraryhidden_columns', true );
+		$hidden_columns = get_user_meta( $user, 'managemedia_page_ai-media-libraryhidden_columns', true );
 		$hidden_columns = is_array( $hidden_columns ) ? $hidden_columns : array();
 
 		$columns = array(
@@ -199,7 +199,7 @@ class MediaLibrary {
 	 * @param string $hook Current admin page hook.
 	 */
 	public function enqueue_assets( $hook ) {
-		if ( 'ai-media_page_ai-media-library' !== $hook ) {
+		if ( 'media_page_ai-media-library' !== $hook ) {
 			return;
 		}
 
@@ -244,7 +244,7 @@ class MediaLibrary {
 		$user            = get_current_user_id();
 		$per_page        = get_user_meta( $user, 'ai_media_per_page', true );
 		$per_page        = $per_page ? $per_page : 20;
-		$hidden_columns  = get_user_meta( $user, 'manageai-media_page_ai-media-libraryhidden_columns', true );
+		$hidden_columns  = get_user_meta( $user, 'managemedia_page_ai-media-libraryhidden_columns', true );
 		$hidden_columns  = is_array( $hidden_columns ) ? $hidden_columns : array();
 
 		// Localize script data.
@@ -255,6 +255,7 @@ class MediaLibrary {
 				'apiUrl'     => rest_url( 'ai-media/v1' ),
 				'nonce'      => wp_create_nonce( 'wp_rest' ),
 				'wpApiUrl'   => rest_url(),
+				'adminUrl'   => admin_url(),
 				'languages'  => array(
 					'current'        => $this->language_detector->get_current_language(),
 					'default'        => $this->language_detector->get_default_language(),
@@ -262,13 +263,69 @@ class MediaLibrary {
 					'isMultilingual' => $this->language_detector->is_multilingual_active(),
 				),
 				'settings'   => get_option( 'ai_media_seo_settings', array() ),
-				'isPro'      => true, // Always true in freemium version
+				'providers'  => get_option( 'ai_media_seo_providers', array() ),
+				'quality_rules' => get_option( 'ai_media_seo_quality_rules', array() ),
+				'available_providers' => \AIMediaSEO\Providers\ProviderFactory::get_available_provider_names(),
+				'provider_models' => $this->get_provider_models(),
+				'image_sizes' => \AIMediaSEO\Utilities\ImageSizeHelper::get_available_sizes_for_js(),
+				'isPro'      => true, 
 				'screenOptions' => array(
 					'perPage'        => (int) $per_page,
 					'hiddenColumns'  => $hidden_columns,
 				),
 			)
 		);
+	}
+
+	/**
+	 * Get provider models with pricing.
+	 *
+	 * @since 1.0.0
+	 * @return array Provider models with pricing keyed by provider name.
+	 */
+	private function get_provider_models() {
+		global $wpdb;
+
+		$models = array();
+
+		// Fetch models from pricing table.
+		$pricing_table = $wpdb->prefix . 'ai_media_pricing';
+		$results       = $wpdb->get_results(
+			"SELECT provider, model_name, input_price_per_million, output_price_per_million
+			FROM {$pricing_table}
+			ORDER BY provider, input_price_per_million ASC",
+			ARRAY_A
+		);
+
+		if ( ! $results ) {
+			// Fallback to hardcoded models if database is empty.
+			foreach ( \AIMediaSEO\Providers\ProviderFactory::get_available_provider_names() as $provider ) {
+				$models[ $provider ] = \AIMediaSEO\Providers\ProviderFactory::get_provider_models( $provider );
+			}
+			return $models;
+		}
+
+		// Group models by provider with pricing info.
+		foreach ( $results as $row ) {
+			$provider   = $row['provider'];
+			$model_name = $row['model_name'];
+			$input_price  = floatval( $row['input_price_per_million'] );
+			$output_price = floatval( $row['output_price_per_million'] );
+
+			if ( ! isset( $models[ $provider ] ) ) {
+				$models[ $provider ] = array();
+			}
+
+			// Format: "model-id" => "Model Name ($input/$output per 1M tokens)"
+			$models[ $provider ][ $model_name ] = sprintf(
+				'%s ($%.2f/$%.2f per 1M)',
+				$model_name,
+				$input_price,
+				$output_price
+			);
+		}
+
+		return $models;
 	}
 
 	/**

@@ -104,15 +104,6 @@ class AutoProcessor {
 				return $metadata;
 			}
 
-			// Check image size limit.
-			$max_size = $settings['max_image_size'] ?? 5; // MB
-			$file_path = get_attached_file( $attachment_id );
-			if ( $file_path && file_exists( $file_path ) ) {
-				$file_size_mb = filesize( $file_path ) / ( 1024 * 1024 );
-				if ( $file_size_mb > $max_size ) {
-					return $metadata;
-				}
-			}
 
 			// Get default language.
 			$language = $this->get_language_detector()->get_default_language();

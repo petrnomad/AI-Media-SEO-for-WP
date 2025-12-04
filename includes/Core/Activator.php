@@ -117,18 +117,6 @@ class Activator {
 			dbDelta( $query );
 		}
 
-		// Verify tables were created.
-		$tables_created = array(
-			$jobs_table   => $wpdb->get_var( "SHOW TABLES LIKE '{$jobs_table}'" ),
-			$events_table => $wpdb->get_var( "SHOW TABLES LIKE '{$events_table}'" ),
-		);
-
-		// Log creation status.
-		foreach ( $tables_created as $table_name => $result ) {
-			if ( $result === $table_name ) {
-			} else {
-			}
-		}
 	}
 
 	/**
@@ -138,24 +126,22 @@ class Activator {
 	 */
 	private static function set_default_options() {
 		$default_settings = array(
-			'version'              => AI_MEDIA_SEO_VERSION,
-			'batch_size'           => 50,
-			'max_concurrent'       => 3,
-			'rate_limit_rpm'       => 120,
-			'backoff_base'         => 5,
-			'backoff_max'          => 300,
-			'auto_approve_threshold' => 0.80, // Lowered from 0.85 to allow more auto-approvals.
-			'max_image_size'       => 1600,
-			'cache_duration'       => 86400, // 24 hours.
-			'alt_max_length'       => 125,
-			'caption_min_words'    => 5,
-			'caption_max_words'    => 30,
-			'title_min_words'      => 3,
-			'title_max_words'      => 6,
-			'keywords_min'         => 3,
-			'keywords_max'         => 6,
-			'enable_auto_process'  => false,
-			'primary_language'     => get_locale(),
+			'version'                    => AI_MEDIA_SEO_VERSION,
+			'backoff_base'               => 5,
+			'backoff_max'                => 300,
+			'auto_approve_threshold'     => 0.80, // Lowered from 0.85 to allow more auto-approvals.
+			'image_size_for_ai'          => 'large',
+			'enable_image_size_fallback' => true,
+			'cache_duration'             => 86400, // 24 hours.
+			'alt_max_length'             => 125,
+			'caption_min_words'          => 5,
+			'caption_max_words'          => 30,
+			'title_min_words'            => 3,
+			'title_max_words'            => 6,
+			'keywords_min'               => 3,
+			'keywords_max'               => 6,
+			'enable_auto_process'        => false,
+			'primary_language'           => get_locale(),
 		);
 
 		// Only set if not already exists.
@@ -164,8 +150,38 @@ class Activator {
 		} else {
 			// Update existing settings with new threshold if still at old default.
 			$existing_settings = get_option( 'ai_media_seo_settings', array() );
+			$updated           = false;
+
 			if ( isset( $existing_settings['auto_approve_threshold'] ) && $existing_settings['auto_approve_threshold'] == 0.85 ) {
 				$existing_settings['auto_approve_threshold'] = 0.80;
+				$updated                                     = true;
+			}
+
+			// Migrate max_image_size to image_size_for_ai.
+			if ( isset( $existing_settings['max_image_size'] ) && ! isset( $existing_settings['image_size_for_ai'] ) ) {
+				$max_size = (int) $existing_settings['max_image_size'];
+
+				// Map pixel size to WordPress image size.
+				if ( $max_size <= 300 ) {
+					$existing_settings['image_size_for_ai'] = 'medium';
+				} elseif ( $max_size <= 768 ) {
+					$existing_settings['image_size_for_ai'] = 'medium_large';
+				} else {
+					$existing_settings['image_size_for_ai'] = 'large';
+				}
+
+				// Remove old setting.
+				unset( $existing_settings['max_image_size'] );
+				$updated = true;
+			}
+
+			// Add enable_image_size_fallback if missing.
+			if ( ! isset( $existing_settings['enable_image_size_fallback'] ) ) {
+				$existing_settings['enable_image_size_fallback'] = true;
+				$updated                                          = true;
+			}
+
+			if ( $updated ) {
 				update_option( 'ai_media_seo_settings', $existing_settings );
 			}
 		}
@@ -232,6 +248,11 @@ class Activator {
 				'daily',
 				'ai_media_seo_sync_pricing'
 			);
+		}
+
+		// Schedule temp files cleanup (hourly).
+		if ( ! wp_next_scheduled( 'ai_media_cleanup_temp_files' ) ) {
+			wp_schedule_event( time(), 'hourly', 'ai_media_cleanup_temp_files' );
 		}
 	}
 
@@ -418,13 +439,6 @@ class Activator {
 			);
 
 			$added_count++;
-		}
-
-		if ( $added_count > 0 ) {
-			error_log( sprintf(
-				'[Activator] Added %d missing pricing entries from hardcoded fallback.',
-				$added_count
-			) );
 		}
 	}
 }

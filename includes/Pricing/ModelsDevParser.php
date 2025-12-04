@@ -87,13 +87,6 @@ class ModelsDevParser {
 			}
 		}
 
-		// Log final error.
-		error_log( sprintf(
-			'[ModelsDevParser] Failed to fetch pricing after %d attempts. Last error: %s',
-			$this->max_retries,
-			$last_error
-		) );
-
 		return array();
 	}
 
@@ -145,7 +138,6 @@ class ModelsDevParser {
 		$data = json_decode( $json, true );
 
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
-			error_log( '[ModelsDevParser] JSON decode error: ' . json_last_error_msg() );
 			return array();
 		}
 
@@ -159,20 +151,12 @@ class ModelsDevParser {
 		// Parse each supported provider.
 		foreach ( $this->supported_providers as $provider ) {
 			if ( ! isset( $data[ $provider ]['models'] ) ) {
-				error_log( sprintf(
-					'[ModelsDevParser] Provider %s not found in API response.',
-					$provider
-				) );
 				continue;
 			}
 
 			$provider_models = $data[ $provider ]['models'];
 
 			if ( ! is_array( $provider_models ) ) {
-				error_log( sprintf(
-					'[ModelsDevParser] Invalid models data for provider %s.',
-					$provider
-				) );
 				continue;
 			}
 
@@ -187,11 +171,6 @@ class ModelsDevParser {
 
 				// Validate required pricing fields.
 				if ( ! isset( $cost['input'] ) || ! isset( $cost['output'] ) ) {
-					error_log( sprintf(
-						'[ModelsDevParser] Missing input/output pricing for model %s in provider %s.',
-						$model_id,
-						$provider
-					) );
 					continue;
 				}
 
@@ -215,13 +194,6 @@ class ModelsDevParser {
 
 				$total_loaded++;
 			}
-		}
-
-		if ( $total_loaded > 0 ) {
-			error_log( sprintf(
-				'[ModelsDevParser] Successfully loaded %d models from API (Anthropic + OpenAI + Google).',
-				$total_loaded
-			) );
 		}
 
 		return $pricing_data;

@@ -79,6 +79,67 @@ class SettingsController extends WP_REST_Controller {
 				),
 			)
 		);
+
+		// Clear OPCache.
+		register_rest_route(
+			$this->namespace,
+			'/clear-opcache',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'clear_opcache' ),
+					'permission_callback' => array( $this, 'check_settings_permission' ),
+				),
+			)
+		);
+
+		// Prompt preview.
+		register_rest_route(
+			$this->namespace,
+			'/settings/prompt-preview',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'get_prompt_preview' ),
+					'permission_callback' => array( $this, 'check_settings_permission' ),
+					'args'                => array(
+						'variant'  => array(
+							'required'          => true,
+							'type'              => 'string',
+							'enum'              => array( 'minimal', 'standard', 'advanced' ),
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+						'language' => array(
+							'required'          => false,
+							'type'              => 'string',
+							'default'           => 'en',
+							'sanitize_callback' => 'sanitize_text_field',
+						),
+					),
+				),
+			)
+		);
+
+		// Detect API tiers.
+		register_rest_route(
+			$this->namespace,
+			'/settings/detect-tiers',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'detect_tiers' ),
+					'permission_callback' => array( $this, 'check_settings_permission' ),
+					'args'                => array(
+						'force_refresh' => array(
+							'required'          => false,
+							'type'              => 'boolean',
+							'default'           => false,
+							'sanitize_callback' => 'rest_sanitize_boolean',
+						),
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -91,9 +152,15 @@ class SettingsController extends WP_REST_Controller {
 	public function get_settings( WP_REST_Request $request ): WP_REST_Response {
 		return new WP_REST_Response(
 			array(
-				'settings'      => get_option( 'ai_media_seo_settings', array() ),
-				'providers'     => get_option( 'ai_media_seo_providers', array() ),
-				'quality_rules' => get_option( 'ai_media_seo_quality_rules', array() ),
+				'settings'        => get_option( 'ai_media_seo_settings', array() ),
+				'providers'       => get_option( 'ai_media_seo_providers', array() ),
+				'quality_rules'   => get_option( 'ai_media_seo_quality_rules', array() ),
+				'quality_weights' => get_option( 'ai_media_seo_quality_weights', array(
+					'alt'     => 0.40,
+					'title'   => 0.30,
+					'caption' => 0.20,
+					'keywords' => 0.10,
+				) ),
 			),
 			200
 		);
@@ -107,9 +174,10 @@ class SettingsController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response object.
 	 */
 	public function update_settings( WP_REST_Request $request ) {
-		$settings      = $request->get_param( 'settings' );
-		$providers     = $request->get_param( 'providers' );
-		$quality_rules = $request->get_param( 'quality_rules' );
+		$settings        = $request->get_param( 'settings' );
+		$providers       = $request->get_param( 'providers' );
+		$quality_rules   = $request->get_param( 'quality_rules' );
+		$quality_weights = $request->get_param( 'quality_weights' );
 
 		$updated = array();
 
@@ -132,6 +200,12 @@ class SettingsController extends WP_REST_Controller {
 			$sanitized = $this->sanitize_quality_rules( $quality_rules );
 			update_option( 'ai_media_seo_quality_rules', $sanitized );
 			$updated['quality_rules'] = $sanitized;
+		}
+
+		if ( null !== $quality_weights ) {
+			$sanitized = $this->sanitize_quality_weights( $quality_weights );
+			update_option( 'ai_media_seo_quality_weights', $sanitized );
+			$updated['quality_weights'] = $sanitized;
 		}
 
 		return new WP_REST_Response(
@@ -230,24 +304,20 @@ class SettingsController extends WP_REST_Controller {
 			$sanitized['lite_daily_limit'] = absint( $input['lite_daily_limit'] );
 		}
 
-		if ( isset( $input['batch_size'] ) ) {
-			$sanitized['batch_size'] = absint( $input['batch_size'] );
-		}
-
-		if ( isset( $input['max_concurrent'] ) ) {
-			$sanitized['max_concurrent'] = absint( $input['max_concurrent'] );
-		}
-
-		if ( isset( $input['rate_limit_rpm'] ) ) {
-			$sanitized['rate_limit_rpm'] = absint( $input['rate_limit_rpm'] );
-		}
 
 		if ( isset( $input['auto_approve_threshold'] ) ) {
 			$sanitized['auto_approve_threshold'] = floatval( $input['auto_approve_threshold'] );
 		}
 
-		if ( isset( $input['max_image_size'] ) ) {
-			$sanitized['max_image_size'] = absint( $input['max_image_size'] );
+		if ( isset( $input['image_size_for_ai'] ) ) {
+			// Validate that the size exists.
+			if ( \AIMediaSEO\Utilities\ImageSizeHelper::is_valid_size( $input['image_size_for_ai'] ) ) {
+				$sanitized['image_size_for_ai'] = sanitize_text_field( $input['image_size_for_ai'] );
+			}
+		}
+
+		if ( isset( $input['enable_image_size_fallback'] ) ) {
+			$sanitized['enable_image_size_fallback'] = (bool) $input['enable_image_size_fallback'];
 		}
 
 		if ( isset( $input['enable_auto_process'] ) ) {
@@ -264,6 +334,20 @@ class SettingsController extends WP_REST_Controller {
 
 		if ( isset( $input['site_context'] ) ) {
 			$sanitized['site_context'] = sanitize_textarea_field( $input['site_context'] );
+		}
+
+		if ( isset( $input['alt_max_length'] ) ) {
+			$sanitized['alt_max_length'] = absint( $input['alt_max_length'] );
+		}
+
+		if ( isset( $input['prompt_variant'] ) ) {
+			$valid_variants = array( 'minimal', 'standard', 'advanced' );
+			$variant        = sanitize_text_field( $input['prompt_variant'] );
+			if ( in_array( $variant, $valid_variants, true ) ) {
+				$sanitized['prompt_variant'] = $variant;
+			} else {
+				$sanitized['prompt_variant'] = 'standard'; // Default to standard.
+			}
 		}
 
 		return $sanitized;
@@ -332,6 +416,53 @@ class SettingsController extends WP_REST_Controller {
 	}
 
 	/**
+	 * Sanitize quality weights.
+	 *
+	 * @since 1.2.0
+	 * @param array $input Raw quality weights.
+	 * @return array Sanitized and normalized quality weights.
+	 */
+	private function sanitize_quality_weights( $input ): array {
+		$sanitized    = array();
+		$valid_fields = array( 'alt', 'title', 'caption', 'keywords' );
+
+		// Sanitize each field (ensure float between 0.0 and 1.0).
+		foreach ( $valid_fields as $field ) {
+			if ( isset( $input[ $field ] ) ) {
+				$weight              = floatval( $input[ $field ] );
+				$sanitized[ $field ] = max( 0.0, min( 1.0, $weight ) );
+			}
+		}
+
+		// Ensure all fields are present with defaults if missing.
+		$defaults = array(
+			'alt'     => 0.40,
+			'title'   => 0.30,
+			'caption' => 0.20,
+			'keywords' => 0.10,
+		);
+
+		foreach ( $defaults as $field => $default_value ) {
+			if ( ! isset( $sanitized[ $field ] ) ) {
+				$sanitized[ $field ] = $default_value;
+			}
+		}
+
+		// Validate that weights sum to 1.0 (100%).
+		$total = array_sum( $sanitized );
+		if ( abs( $total - 1.0 ) > 0.01 ) {
+			throw new \Exception(
+				sprintf(
+					'Quality weights must total 100%%. Current total: %d%%',
+					round( $total * 100 )
+				)
+			);
+		}
+
+		return $sanitized;
+	}
+
+	/**
 	 * Update fallback order based on primary provider.
 	 *
 	 * @since 1.0.0
@@ -359,5 +490,153 @@ class SettingsController extends WP_REST_Controller {
 
 		// Update fallback order option.
 		update_option( 'ai_media_seo_fallback_order', $fallback_order );
+	}
+
+	/**
+	 * Clear PHP OPCache.
+	 *
+	 * Clears PHP OPCache to ensure new code changes take effect immediately.
+	 * Useful after plugin updates or code modifications.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function clear_opcache( WP_REST_Request $request ): WP_REST_Response {
+		$cleared = false;
+		$message = '';
+
+		// Check if OPCache is enabled and available.
+		if ( function_exists( 'opcache_reset' ) ) {
+			// Get status before clearing.
+			$status_before = opcache_get_status();
+			$scripts_before = $status_before ? $status_before['opcache_statistics']['num_cached_scripts'] : 0;
+
+			// Clear OPCache.
+			$cleared = opcache_reset();
+
+			if ( $cleared ) {
+				$message = sprintf(
+					'OPCache cleared successfully! %d cached scripts were removed.',
+					$scripts_before
+				);
+			} else {
+				$message = 'Failed to clear OPCache. Check server permissions.';
+			}
+		} else {
+			$message = 'OPCache is not enabled on this server.';
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success' => $cleared,
+				'message' => $message,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Get prompt preview for settings page.
+	 *
+	 * Builds a real prompt using actual PromptBuilder classes with sample context.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function get_prompt_preview( WP_REST_Request $request ): WP_REST_Response {
+		$variant  = $request->get_param( 'variant' );
+		$language = $request->get_param( 'language' ) ?? 'en';
+
+		// Get current settings.
+		$settings = get_option( 'ai_media_seo_settings', array() );
+
+		// Create sample context for preview.
+		$sample_context = array(
+			'post_title'             => '[Post Title]',
+			'post_excerpt'           => '[Post Excerpt]',
+			'categories'             => array( '[Category 1]', '[Category 2]' ),
+			'tags'                   => array( '[Tag 1]', '[Tag 2]', '[Tag 3]' ),
+			'post_type'              => 'post',
+			'filename_hint'          => '[filename-hint]',
+			'orientation'            => '[orientation]',
+			'dimensions'             => '[dimensions]',
+			'current_alt'            => '[Existing ALT]',
+			'attachment_title'       => '[Attachment Title]',
+			'attachment_caption'     => '[Author Caption]',
+			'attachment_description' => '[Attachment Description]',
+			'exif_title'             => '[EXIF Title]',
+			'exif_caption'           => '[EXIF Caption]',
+			'camera'                 => '[Camera Model]',
+			'photo_date'             => '[Photo Date]',
+			'location'               => '[GPS Location]',
+			'copyright'              => '[Copyright Info]',
+		);
+
+		// Select appropriate builder.
+		switch ( $variant ) {
+			case 'minimal':
+				$builder = new \AIMediaSEO\Prompts\MinimalPromptBuilder();
+				break;
+			case 'advanced':
+				$builder = new \AIMediaSEO\Prompts\AdvancedPromptBuilder();
+				break;
+			case 'standard':
+			default:
+				$builder = new \AIMediaSEO\Prompts\StandardPromptBuilder();
+				break;
+		}
+
+		// Build prompt using real PromptBuilder.
+		$prompt = $builder->build( $language, $sample_context, $settings );
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'variant' => $variant,
+				'language' => $language,
+				'prompt' => $prompt,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Detect API tiers for all configured providers.
+	 *
+	 * @since 2.2.0
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response Response object.
+	 */
+	public function detect_tiers( WP_REST_Request $request ): WP_REST_Response {
+		$force_refresh = $request->get_param( 'force_refresh' ) ?? false;
+
+		if ( $force_refresh ) {
+			// Clear cache for all providers.
+			$providers = array( 'openai', 'anthropic', 'google' );
+			foreach ( $providers as $provider ) {
+				\AIMediaSEO\Providers\TierDetector::refresh_tier_cache( $provider );
+			}
+		}
+
+		$tiers = \AIMediaSEO\Providers\TierDetector::detect_all_tiers();
+
+		// Přidat doporučení pro každý provider.
+		foreach ( $tiers as $provider => &$tier_info ) {
+			$tier_info['recommended_concurrency'] = \AIMediaSEO\Providers\TierDetector::get_recommended_concurrency(
+				$tier_info['tier'],
+				$tier_info['rpm']
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success'     => true,
+				'tiers'       => $tiers,
+				'detected_at' => current_time( 'mysql' ),
+			),
+			200
+		);
 	}
 }

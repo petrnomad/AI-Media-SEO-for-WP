@@ -397,9 +397,11 @@ class JobsController extends WP_REST_Controller {
 		);
 
 		// Map status counts.
+		$images_with_status = 0;
 		foreach ( $status_counts as $row ) {
 			$status = $row['status'];
 			$count = (int) $row['count'];
+			$images_with_status += $count;
 
 			if ( $status === 'pending' ) {
 				$stats['pending'] = $count;
@@ -412,6 +414,12 @@ class JobsController extends WP_REST_Controller {
 			} elseif ( $status === 'failed' ) {
 				$stats['failed'] = $count;
 			}
+		}
+
+		// Images without _ai_media_status meta are considered 'pending'.
+		$images_without_status = $total_images - $images_with_status;
+		if ( $images_without_status > 0 ) {
+			$stats['pending'] += $images_without_status;
 		}
 
 		// Add jobs from Action Scheduler (pending/processing).

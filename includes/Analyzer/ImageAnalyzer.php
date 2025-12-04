@@ -179,6 +179,12 @@ class ImageAnalyzer {
 			'image/webp',
 		);
 
+		// Add AVIF if server supports it.
+		$avif_support = \AIMediaSEO\Utilities\AvifConverter::check_avif_support();
+		if ( $avif_support['supported'] ) {
+			$supported_mimes[] = 'image/avif';
+		}
+
 		if ( ! in_array( $mime_type, $supported_mimes, true ) ) {
 			$result['errors'][] = sprintf(
 				/* translators: %s: MIME type */
@@ -392,7 +398,7 @@ class ImageAnalyzer {
 
 			// Apply metadata based on context and score:
 			// - Auto-processing (upload): Apply to draft if score < 85%, apply directly if score >= 85%
-			// - Manual processing: Only apply directly if score >= 85%
+			// - Manual processing (batch): Apply to draft if score < 85%, apply directly if score >= 85%
 			$should_apply_to_draft = false;
 			$should_apply_directly = false;
 
@@ -407,10 +413,13 @@ class ImageAnalyzer {
 						$should_apply_to_draft = true;
 					}
 				} else {
-					// Manual processing: only apply if score is high enough
+					// Manual processing (batch from UI)
 					if ( $result['can_auto_approve'] ) {
+						// High score: apply directly
 						$should_apply_directly = true;
 					} else {
+						// Low score: apply to draft for review
+						$should_apply_to_draft = true;
 					}
 				}
 			}
@@ -432,7 +441,11 @@ class ImageAnalyzer {
 	/**
 	 * Apply metadata to attachment.
 	 *
+	 * Optimized version using batch operations.
+	 * Even for single attachments, this is more efficient than individual updates.
+	 *
 	 * @since 1.0.0
+	 * @since 2.2.0 Refactored to use BatchMetadataStore for better performance.
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $language      Language code.
 	 * @param array  $metadata      Metadata to apply.
@@ -448,37 +461,54 @@ class ImageAnalyzer {
 		 */
 		do_action( 'ai_media_before_apply_metadata', $attachment_id, $language, $metadata );
 
+		$batch_store = new \AIMediaSEO\Storage\BatchMetadataStore();
+
+		// Prepare post meta updates.
+		$post_meta_updates = array(
+			$attachment_id => array(),
+		);
+
+		// Prepare post field updates.
+		$post_updates = array(
+			$attachment_id => array(),
+		);
+
 		// Apply ALT text.
 		if ( ! empty( $metadata['alt'] ) ) {
-			update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $metadata['alt'] ) );
-			update_post_meta( $attachment_id, "ai_alt_{$language}", sanitize_text_field( $metadata['alt'] ) );
+			$alt_text                                                       = sanitize_text_field( $metadata['alt'] );
+			$post_meta_updates[ $attachment_id ]['_wp_attachment_image_alt'] = $alt_text;
+			$post_meta_updates[ $attachment_id ][ "ai_alt_{$language}" ]      = $alt_text;
 		}
 
 		// Apply caption.
 		if ( ! empty( $metadata['caption'] ) ) {
-			wp_update_post( array(
-				'ID'           => $attachment_id,
-				'post_excerpt' => wp_kses_post( $metadata['caption'] ),
-			) );
-			update_post_meta( $attachment_id, "ai_caption_{$language}", wp_kses_post( $metadata['caption'] ) );
+			$caption                                                   = wp_kses_post( $metadata['caption'] );
+			$post_updates[ $attachment_id ]['post_excerpt']            = $caption;
+			$post_meta_updates[ $attachment_id ][ "ai_caption_{$language}" ] = $caption;
 		}
 
 		// Apply title.
 		if ( ! empty( $metadata['title'] ) ) {
-			wp_update_post( array(
-				'ID'         => $attachment_id,
-				'post_title' => sanitize_text_field( $metadata['title'] ),
-			) );
-			update_post_meta( $attachment_id, "ai_title_{$language}", sanitize_text_field( $metadata['title'] ) );
+			$title                                                   = sanitize_text_field( $metadata['title'] );
+			$post_updates[ $attachment_id ]['post_title']            = $title;
+			$post_meta_updates[ $attachment_id ][ "ai_title_{$language}" ] = $title;
 		}
 
 		// Apply keywords.
 		if ( ! empty( $metadata['keywords'] ) ) {
-			update_post_meta(
-				$attachment_id,
-				"ai_keywords_{$language}",
-				array_map( 'sanitize_text_field', $metadata['keywords'] )
-			);
+			$keywords = is_array( $metadata['keywords'] )
+				? $metadata['keywords']
+				: array( $metadata['keywords'] );
+			$post_meta_updates[ $attachment_id ][ "ai_keywords_{$language}" ] = array_map( 'sanitize_text_field', $keywords );
+		}
+
+		// Execute batch operations (2 queries total instead of 5-7).
+		if ( ! empty( $post_meta_updates[ $attachment_id ] ) ) {
+			$batch_store->bulk_update_post_meta( $post_meta_updates );
+		}
+
+		if ( ! empty( $post_updates[ $attachment_id ] ) ) {
+			$batch_store->bulk_update_posts( $post_updates );
 		}
 
 		/**

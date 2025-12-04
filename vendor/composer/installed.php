@@ -3,7 +3,7 @@
         'name' => 'ai-media-seo/ai-media-seo',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '63d9519ba6b15f02463699c069e6bed9fe3b09fc',
+        'reference' => 'ddc56e2c722ed948dc803fa0d14f86903ac46239',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'ai-media-seo/ai-media-seo' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '63d9519ba6b15f02463699c069e6bed9fe3b09fc',
+            'reference' => 'ddc56e2c722ed948dc803fa0d14f86903ac46239',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

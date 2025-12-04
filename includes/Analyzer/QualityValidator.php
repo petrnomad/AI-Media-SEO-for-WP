@@ -28,12 +28,21 @@ class QualityValidator {
 	private $rules;
 
 	/**
+	 * Quality weights for each field.
+	 *
+	 * @since 1.2.0
+	 * @var array
+	 */
+	private $weights;
+
+	/**
 	 * Constructor.
 	 *
 	 * @since 1.0.0
 	 */
 	public function __construct() {
 		$this->load_rules();
+		$this->load_weights();
 	}
 
 	/**
@@ -48,6 +57,35 @@ class QualityValidator {
 		if ( empty( $this->rules ) ) {
 			$this->rules = $this->get_default_rules();
 		}
+	}
+
+	/**
+	 * Load quality weights from settings.
+	 *
+	 * @since 1.2.0
+	 */
+	private function load_weights(): void {
+		$this->weights = get_option( 'ai_media_seo_quality_weights', array() );
+
+		// Set defaults if not configured.
+		if ( empty( $this->weights ) ) {
+			$this->weights = $this->get_default_weights();
+		}
+	}
+
+	/**
+	 * Get default quality weights.
+	 *
+	 * @since 1.2.0
+	 * @return array Default weights.
+	 */
+	private function get_default_weights(): array {
+		return array(
+			'alt'     => 0.40, // 40% - Critical for Image SEO & Accessibility.
+			'title'   => 0.30, // 30% - Important for structure & social sharing.
+			'caption' => 0.20, // 20% - Contextual support & engagement.
+			'keywords' => 0.10, // 10% - Organizational taxonomy.
+		);
 	}
 
 	/**
@@ -148,13 +186,29 @@ class QualityValidator {
 			$scores['keywords'] = $keywords_validation['score'];
 		}
 
-		// Calculate overall score.
-		$overall_score = ! empty( $scores ) ? array_sum( $scores ) / count( $scores ) : 0.0;
+		// Calculate weighted overall score.
+		$overall_score = 0.0;
+		$total_weight  = 0.0;
+		$weights       = $this->weights;
+
+		foreach ( $scores as $field => $score ) {
+			if ( isset( $weights[ $field ] ) ) {
+				$overall_score += $score * $weights[ $field ];
+				$total_weight  += $weights[ $field ];
+			}
+		}
+
+		// Normalize if not all fields present (missing fields = lower weight total).
+		if ( $total_weight > 0 ) {
+			$overall_score = $overall_score / $total_weight;
+		}
 
 		return array(
-			'valid'  => empty( $errors ),
-			'errors' => $errors,
-			'score'  => $overall_score,
+			'valid'         => empty( $errors ),
+			'errors'        => $errors,
+			'score'         => $overall_score,
+			'field_scores'  => $scores,      // Individual field scores.
+			'field_weights' => $weights,     // Weights used.
 		);
 	}
 
@@ -395,5 +449,53 @@ class QualityValidator {
 		$threshold = $settings['auto_approve_threshold'] ?? 0.85;
 
 		return $score >= $threshold;
+	}
+
+	/**
+	 * Get detailed quality report.
+	 *
+	 * Provides comprehensive breakdown of quality scoring for debugging/analytics.
+	 *
+	 * @since 1.2.0
+	 * @param array $metadata The metadata to analyze.
+	 * @return array {
+	 *     Detailed quality report.
+	 *
+	 *     @type float  $overall_score     Final weighted score (0.0-1.0).
+	 *     @type array  $field_scores      Individual field scores.
+	 *     @type array  $field_weights     Weights applied to each field.
+	 *     @type array  $weighted_scores   Calculated contribution of each field.
+	 *     @type bool   $can_auto_approve  Whether score meets threshold.
+	 *     @type array  $errors            Validation errors by field.
+	 *     @type string $quality_level     'high', 'medium', 'low'.
+	 * }
+	 */
+	public function get_detailed_report( array $metadata ): array {
+		$validation = $this->validate( $metadata );
+
+		// Calculate weighted contributions.
+		$weighted_scores = array();
+		foreach ( $validation['field_scores'] as $field => $score ) {
+			$weight = $validation['field_weights'][ $field ] ?? 0.0;
+			$weighted_scores[ $field ] = $score * $weight;
+		}
+
+		// Determine quality level.
+		$quality_level = 'low';
+		if ( $validation['score'] >= 0.85 ) {
+			$quality_level = 'high';
+		} elseif ( $validation['score'] >= 0.70 ) {
+			$quality_level = 'medium';
+		}
+
+		return array(
+			'overall_score'     => $validation['score'],
+			'field_scores'      => $validation['field_scores'],
+			'field_weights'     => $validation['field_weights'],
+			'weighted_scores'   => $weighted_scores,
+			'can_auto_approve'  => $this->can_auto_approve( $validation['score'] ),
+			'errors'            => $validation['errors'],
+			'quality_level'     => $quality_level,
+		);
 	}
 }

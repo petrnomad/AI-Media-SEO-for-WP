@@ -1,6 +1,6 @@
 {
-    "name": "aimediaseo/ai-media-seo",
-    "description": "Automatically generate SEO-optimized image metadata (ALT, caption, title, keywords) using AI providers (OpenAI, Anthropic, Google).",
+    "name": "petrnomad/ai-media-seo",
+    "description": "Automatically generate SEO-optimized image metadata (ALT, caption, title, keywords) using AI providers.",
     "type": "wordpress-plugin",
     "license": "GPL-3.0-or-later",
     "authors": [
@@ -12,7 +12,7 @@
     ],
     "require": {
         "php": ">=8.1",
-        "woocommerce/action-scheduler": "^3.0"
+        "woocommerce/action-scheduler": "^3.7"
     },
     "autoload": {
         "psr-4": {

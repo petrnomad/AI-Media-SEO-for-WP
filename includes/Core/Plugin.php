@@ -80,6 +80,7 @@ class Plugin {
 		$this->define_api_hooks();
 		$this->define_multilingual_hooks();
 		$this->define_cron_hooks();
+		$this->define_background_queue_hooks();
 		$this->register_wpcli_commands();
 	}
 
@@ -150,11 +151,9 @@ class Plugin {
 	 */
 	private function define_admin_hooks() {
 		// Initialize admin pages.
-		$dashboard     = new \AIMediaSEO\Admin\Dashboard();
 		$media_library = new \AIMediaSEO\Admin\MediaLibrary();
 		$settings      = new \AIMediaSEO\Admin\Settings();
 
-		$dashboard->register();
 		$media_library->register();
 		$settings->register();
 
@@ -185,6 +184,13 @@ class Plugin {
 			'rest_api_init',
 			$this,
 			'register_rest_routes'
+		);
+
+		// Register custom meta fields for REST API - must be on rest_api_init hook!
+		$this->loader->add_action(
+			'rest_api_init',
+			$this,
+			'register_meta_fields'
 		);
 	}
 
@@ -234,6 +240,26 @@ class Plugin {
 			$this,
 			'cleanup_old_logs'
 		);
+
+		// Register temp files cleanup cron job.
+		$this->loader->add_action(
+			'ai_media_cleanup_temp_files',
+			$this,
+			'cleanup_temp_files'
+		);
+	}
+
+	/**
+	 * Register all background queue hooks.
+	 *
+	 * FÁZE 3: Background Processing.
+	 *
+	 * @since  2.2.0
+	 * @access private
+	 */
+	private function define_background_queue_hooks() {
+		// Register BackgroundQueue Action Scheduler hooks.
+		\AIMediaSEO\Queue\BackgroundQueue::register_hooks();
 	}
 
 	/**
@@ -261,14 +287,24 @@ class Plugin {
 		$table_name = $wpdb->prefix . 'ai_media_events';
 		$days_ago   = 90;
 
-		$deleted = $wpdb->query(
+		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$table_name}
 				WHERE created_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
 				$days_ago
 			)
 		);
+	}
 
+	/**
+	 * Cleanup old temporary AVIF conversion files.
+	 *
+	 * Runs via WP Cron hourly. Deletes files older than 1 hour.
+	 *
+	 * @since 1.7.0
+	 */
+	public function cleanup_temp_files(): void {
+		\AIMediaSEO\Utilities\AvifConverter::cleanup_old_temp_files( 3600 );
 	}
 
 	/**
@@ -377,112 +413,6 @@ class Plugin {
 	}
 
 	/**
-	 * Add admin menu pages.
-	 *
-	 * @since 1.0.0
-	 */
-	public function add_admin_menu() {
-		// Main menu page - Dashboard.
-		add_menu_page(
-			__( 'AI Media SEO', 'ai-media-seo' ),
-			__( 'AI Media', 'ai-media-seo' ),
-			'ai_media_process_images',
-			'ai-media-seo',
-			array( $this, 'render_dashboard_page' ),
-			'dashicons-images-alt2',
-			30
-		);
-
-		// Submenu - Dashboard (rename the first item).
-		add_submenu_page(
-			'ai-media-seo',
-			__( 'Dashboard', 'ai-media-seo' ),
-			__( 'Dashboard', 'ai-media-seo' ),
-			'ai_media_process_images',
-			'ai-media-seo',
-			array( $this, 'render_dashboard_page' )
-		);
-
-		// Submenu - Library.
-		add_submenu_page(
-			'ai-media-seo',
-			__( 'Media Library', 'ai-media-seo' ),
-			__( 'Library', 'ai-media-seo' ),
-			'ai_media_process_images',
-			'ai-media-library',
-			array( $this, 'render_library_page' )
-		);
-
-		// Submenu - Queue.
-		add_submenu_page(
-			'ai-media-seo',
-			__( 'Processing Queue', 'ai-media-seo' ),
-			__( 'Queue', 'ai-media-seo' ),
-			'ai_media_process_images',
-			'ai-media-queue',
-			array( $this, 'render_queue_page' )
-		);
-
-		// Submenu - Settings.
-		add_submenu_page(
-			'ai-media-seo',
-			__( 'Settings', 'ai-media-seo' ),
-			__( 'Settings', 'ai-media-seo' ),
-			'ai_media_manage_settings',
-			'ai-media-settings',
-			array( $this, 'render_settings_page' )
-		);
-	}
-
-	/**
-	 * Render dashboard page.
-	 *
-	 * @since 1.0.0
-	 */
-	public function render_dashboard_page() {
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'AI Media SEO - Dashboard', 'ai-media-seo' ) . '</h1>';
-		echo '<div id="ai-media-dashboard-root"></div>';
-		echo '</div>';
-	}
-
-	/**
-	 * Render library page.
-	 *
-	 * @since 1.0.0
-	 */
-	public function render_library_page() {
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'AI Media SEO - Media Library', 'ai-media-seo' ) . '</h1>';
-		echo '<div id="ai-media-library-root"></div>';
-		echo '</div>';
-	}
-
-	/**
-	 * Render queue page.
-	 *
-	 * @since 1.0.0
-	 */
-	public function render_queue_page() {
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'AI Media SEO - Processing Queue', 'ai-media-seo' ) . '</h1>';
-		echo '<div id="ai-media-queue-root"></div>';
-		echo '</div>';
-	}
-
-	/**
-	 * Render settings page.
-	 *
-	 * @since 1.0.0
-	 */
-	public function render_settings_page() {
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'AI Media SEO - Settings', 'ai-media-seo' ) . '</h1>';
-		echo '<div id="ai-media-settings-root"></div>';
-		echo '</div>';
-	}
-
-	/**
 	 * Add action links to plugin page.
 	 *
 	 * @since 1.0.0
@@ -492,7 +422,7 @@ class Plugin {
 	public function add_action_links( $links ) {
 		$settings_link = sprintf(
 			'<a href="%s">%s</a>',
-			admin_url( 'admin.php?page=ai-media-settings' ),
+			admin_url( 'options-general.php?page=ai-media-settings' ),
 			__( 'Settings', 'ai-media-seo' )
 		);
 
@@ -509,6 +439,69 @@ class Plugin {
 	public function register_rest_routes() {
 		$controller = new \AIMediaSEO\API\RestController();
 		$controller->register_routes();
+	}
+
+	/**
+	 * Register custom meta fields for REST API.
+	 *
+	 * @since 1.0.0
+	 */
+	public function register_meta_fields() {
+		// Register AI Media SEO status field.
+		register_post_meta(
+			'attachment',
+			'_ai_media_status',
+			array(
+				'type'          => 'string',
+				'description'   => 'AI Media SEO processing status',
+				'single'        => true,
+				'show_in_rest'  => true,
+				'default'       => 'pending',
+				'auth_callback' => '__return_true',
+			)
+		);
+
+		// Register draft alt text field.
+		register_post_meta(
+			'attachment',
+			'_ai_media_draft_alt',
+			array(
+				'type'          => 'string',
+				'description'   => 'AI generated draft alt text',
+				'single'        => true,
+				'show_in_rest'  => true,
+				'default'       => '',
+				'auth_callback' => '__return_true',
+			)
+		);
+
+		// Register draft title field.
+		register_post_meta(
+			'attachment',
+			'_ai_media_draft_title',
+			array(
+				'type'          => 'string',
+				'description'   => 'AI generated draft title',
+				'single'        => true,
+				'show_in_rest'  => true,
+				'default'       => '',
+				'auth_callback' => '__return_true',
+			)
+		);
+
+		// Register draft caption field.
+		register_post_meta(
+			'attachment',
+			'_ai_media_draft_caption',
+			array(
+				'type'          => 'string',
+				'description'   => 'AI generated draft caption',
+				'single'        => true,
+				'show_in_rest'  => true,
+				'default'       => '',
+				'auth_callback' => '__return_true',
+			)
+		);
 	}
 
 	/**
@@ -599,7 +592,7 @@ class Plugin {
 			return;
 		}
 
-		// Register CLI commands (available in freemium version).
+		// Register CLI commands
 		\WP_CLI::add_command( 'ai-media', '\AIMediaSEO\CLI\Commands' );
 	}
 }

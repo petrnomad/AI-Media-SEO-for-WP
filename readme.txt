@@ -2,8 +2,8 @@
 Contributors: petrnomad
 Tags: seo, image seo, ai, openai, anthropic, google gemini, media library, alt text, accessibility
 Requires at least: 6.3
-Tested up to: 6.9
-Stable tag: 1.0.0
+Tested up to: 6.7
+Stable tag: 2.3.7
 Requires PHP: 8.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -48,6 +48,9 @@ Yes, you need an active API key from at least one of the supported providers (Op
 Yes, the plugin supports multiple languages including English, Czech, German, and Slovak. It also integrates with Polylang and WPML.
 
 == Changelog ==
+
+= 2.3.7 =
+*   Latest version with multi-provider support and advanced features.
 
 = 1.0.0 =
 *   Initial release.

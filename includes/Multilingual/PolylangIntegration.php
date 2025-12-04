@@ -121,6 +121,7 @@ class PolylangIntegration {
 		}
 
 		$language = pll_get_post_language( $attachment_id, 'slug' );
+
 		if ( $language ) {
 			return $language;
 		}
@@ -128,7 +129,8 @@ class PolylangIntegration {
 		// Fallback: Check parent post
 		$parent_id = wp_get_post_parent_id( $attachment_id );
 		if ( $parent_id ) {
-			return pll_get_post_language( $parent_id, 'slug' );
+			$parent_language = pll_get_post_language( $parent_id, 'slug' );
+			return $parent_language;
 		}
 
 		return null;

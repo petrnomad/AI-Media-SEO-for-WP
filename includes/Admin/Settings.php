@@ -55,10 +55,9 @@ class Settings {
 	 * @since 1.0.0
 	 */
 	public function add_submenu_page() {
-		add_submenu_page(
-			'ai-media-seo',
-			__( 'Settings', 'ai-media-seo' ),
-			__( 'Settings', 'ai-media-seo' ),
+		add_options_page(
+			__( 'AI Media SEO Settings', 'ai-media-seo' ),
+			__( 'AI Media SEO Settings', 'ai-media-seo' ),
 			'manage_options',
 			'ai-media-settings',
 			array( $this, 'render_page' )
@@ -103,6 +102,21 @@ class Settings {
 				'default'           => array(),
 			)
 		);
+
+		register_setting(
+			'ai_media_seo_quality_weights',
+			'ai_media_seo_quality_weights',
+			array(
+				'type'         => 'object',
+				'show_in_rest' => true,
+				'default'      => array(
+					'alt'     => 0.40,
+					'title'   => 0.30,
+					'caption' => 0.20,
+					'keywords' => 0.10,
+				),
+			)
+		);
 	}
 
 	/**
@@ -115,32 +129,24 @@ class Settings {
 	public function sanitize_settings( $input ) {
 		$sanitized = array();
 
-		if ( isset( $input['batch_size'] ) ) {
-			$sanitized['batch_size'] = absint( $input['batch_size'] );
-		}
-
-		if ( isset( $input['max_concurrent'] ) ) {
-			$sanitized['max_concurrent'] = absint( $input['max_concurrent'] );
-		}
-
-		if ( isset( $input['rate_limit_rpm'] ) ) {
-			$sanitized['rate_limit_rpm'] = absint( $input['rate_limit_rpm'] );
-		}
 
 		if ( isset( $input['auto_approve_threshold'] ) ) {
 			$sanitized['auto_approve_threshold'] = floatval( $input['auto_approve_threshold'] );
 		}
 
-		if ( isset( $input['max_image_size'] ) ) {
-			$sanitized['max_image_size'] = absint( $input['max_image_size'] );
+		if ( isset( $input['image_size_for_ai'] ) ) {
+			// Validate that the size exists.
+			if ( \AIMediaSEO\Utilities\ImageSizeHelper::is_valid_size( $input['image_size_for_ai'] ) ) {
+				$sanitized['image_size_for_ai'] = sanitize_text_field( $input['image_size_for_ai'] );
+			}
+		}
+
+		if ( isset( $input['enable_image_size_fallback'] ) ) {
+			$sanitized['enable_image_size_fallback'] = (bool) $input['enable_image_size_fallback'];
 		}
 
 		if ( isset( $input['enable_auto_process'] ) ) {
 			$sanitized['enable_auto_process'] = (bool) $input['enable_auto_process'];
-		}
-
-		if ( isset( $input['primary_language'] ) ) {
-			$sanitized['primary_language'] = sanitize_text_field( $input['primary_language'] );
 		}
 
 		return $sanitized;
@@ -211,7 +217,7 @@ class Settings {
 	 * @param string $hook Current admin page hook.
 	 */
 	public function enqueue_assets( $hook ) {
-		if ( 'ai-media_page_ai-media-settings' !== $hook ) {
+		if ( 'settings_page_ai-media-settings' !== $hook ) {
 			return;
 		}
 
@@ -259,12 +265,23 @@ class Settings {
 			array(
 				'apiUrl'             => rest_url( 'ai-media/v1' ),
 				'nonce'              => wp_create_nonce( 'wp_rest' ),
+				'adminUrl'           => admin_url(),
 				'settings'           => get_option( 'ai_media_seo_settings', array() ),
 				'providers'          => get_option( 'ai_media_seo_providers', array() ),
 				'quality_rules'      => get_option( 'ai_media_seo_quality_rules', array() ),
+				'quality_weights'    => get_option(
+					'ai_media_seo_quality_weights',
+					array(
+						'alt'     => 0.40,
+						'title'   => 0.30,
+						'caption' => 0.20,
+						'keywords' => 0.10,
+					)
+				),
 				'available_providers' => ProviderFactory::get_available_provider_names(),
 				'provider_models'    => $this->get_provider_models(),
-				'isPro'              => true, // Always true in freemium version
+				'image_sizes'        => \AIMediaSEO\Utilities\ImageSizeHelper::get_available_sizes_for_js(),
+				'isPro'              => true, 
 			)
 		);
 	}
@@ -330,9 +347,48 @@ class Settings {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'ai-media-seo' ) );
 		}
 
+		// Check AVIF support.
+		$avif_support = \AIMediaSEO\Utilities\AvifConverter::check_avif_support();
+
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'AI Media SEO Settings', 'ai-media-seo' ); ?></h1>
+
+			<?php if ( ! $avif_support['supported'] ) : ?>
+				<div class="notice notice-warning">
+					<p>
+						<strong><?php esc_html_e( 'AVIF Conversion Warning', 'ai-media-seo' ); ?>:</strong>
+						<?php
+						esc_html_e(
+							'Your server does not support AVIF image conversion. AVIF images will be sent to AI providers in their original format, which may cause processing issues or failures.',
+							'ai-media-seo'
+						);
+						?>
+					</p>
+					<p>
+						<?php
+						esc_html_e(
+							'To enable AVIF support, please contact your hosting provider and ensure PHP 8.1+ with GD library (compiled with libavif) or ImageMagick (with libaom and libheif) is installed.',
+							'ai-media-seo'
+						);
+						?>
+					</p>
+				</div>
+			<?php elseif ( $avif_support['library'] !== 'none' ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p>
+						<strong><?php esc_html_e( 'AVIF Support Enabled', 'ai-media-seo' ); ?>:</strong>
+						<?php
+						printf(
+							/* translators: %s: Image library name (GD or ImageMagick) */
+							esc_html__( 'Your server supports AVIF conversion using %s. AVIF images will be automatically converted to JPEG before AI analysis.', 'ai-media-seo' ),
+							'<code>' . esc_html( strtoupper( $avif_support['library'] ) ) . '</code>'
+						);
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
 			<div id="ai-media-settings-root"></div>
 		</div>
 		<?php

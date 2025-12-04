@@ -63,6 +63,9 @@ class Deactivator {
 
 		// Clear pricing sync schedule.
 		wp_clear_scheduled_hook( 'ai_media_seo_sync_pricing' );
+
+		// Clear temp files cleanup cron.
+		wp_clear_scheduled_hook( 'ai_media_cleanup_temp_files' );
 	}
 
 	/**
@@ -108,6 +111,7 @@ class Deactivator {
 		self::delete_options();
 		self::delete_post_meta();
 		self::remove_capabilities();
+		self::delete_temp_directory();
 
 	}
 
@@ -143,7 +147,7 @@ class Deactivator {
 		delete_option( 'ai_media_seo_db_version' );
 		delete_option( 'ai_media_seo_activated' );
 
-		// Clean up any legacy license-related options (from pre-freemium versions).
+		// Clean up any legacy license-related options
 		delete_option( 'ai_media_license_key' );
 		delete_option( 'ai_media_license_token' );
 		delete_option( 'ai_media_license_tier' );
@@ -152,7 +156,7 @@ class Deactivator {
 		delete_option( 'ai_media_license_features' );
 		delete_transient( 'ai_media_license_valid' );
 
-		// Clean up daily limit transients (from Lite version).
+		// Clean up daily limit transients
 		$wpdb->query(
 			"DELETE FROM {$wpdb->options}
 			WHERE option_name LIKE '_transient_ai_media_daily_count_%'
@@ -162,7 +166,20 @@ class Deactivator {
 	}
 
 	/**
-	 * Delete all AI-generated post meta.
+	 * Delete plugin-specific post meta.
+	 *
+	 * Removes only plugin-specific metadata (ai_*, _ai_media_*) from postmeta table.
+	 *
+	 * ✓ PRESERVES standard WordPress fields:
+	 *   - _wp_attachment_image_alt (WordPress ALT text)
+	 *   - post_title (attachment title - in posts table)
+	 *   - post_excerpt (attachment caption - in posts table)
+	 *   - All multilingual translations (Polylang/WPML)
+	 *
+	 * ✗ REMOVES plugin-specific metadata:
+	 *   - ai_alt_{language}, ai_caption_{language}, ai_title_{language}
+	 *   - ai_keywords_{language}, ai_score_{language}
+	 *   - ai_status, ai_last_provider, ai_last_model, etc.
 	 *
 	 * @since 1.0.0
 	 */
@@ -176,6 +193,7 @@ class Deactivator {
 			OR meta_key LIKE 'ai\_title\_%'
 			OR meta_key LIKE 'ai\_keywords\_%'
 			OR meta_key LIKE 'ai\_score\_%'
+			OR meta_key LIKE '\_ai\_media\_%'
 			OR meta_key IN (
 				'ai_status',
 				'ai_last_provider',
@@ -206,5 +224,30 @@ class Deactivator {
 			}
 		}
 
+	}
+
+	/**
+	 * Delete temporary AVIF conversion directory.
+	 *
+	 * @since 1.7.0
+	 */
+	private static function delete_temp_directory() {
+		$upload_dir = wp_upload_dir();
+		$temp_dir   = $upload_dir['basedir'] . '/ai-media-temp/';
+
+		if ( is_dir( $temp_dir ) ) {
+			// Delete all files.
+			$files = glob( $temp_dir . '*' );
+			if ( ! empty( $files ) ) {
+				foreach ( $files as $file ) {
+					if ( is_file( $file ) ) {
+						@unlink( $file );
+					}
+				}
+			}
+
+			// Delete directory.
+			@rmdir( $temp_dir );
+		}
 	}
 }

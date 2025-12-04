@@ -60,10 +60,6 @@ class CostCalculator {
 		$pricing = $this->get_model_pricing( $model );
 
 		if ( null === $pricing ) {
-			error_log( sprintf(
-				'[CostCalculator] No pricing data found for model: %s. Available models need to be synced.',
-				$model
-			) );
 			return array(
 				'success'           => false,
 				'input_cost'        => 0,
