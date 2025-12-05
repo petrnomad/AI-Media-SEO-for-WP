@@ -128,7 +128,7 @@ class AvifConverter {
 			return false;
 		}
 
-		return @unlink( $temp_path );
+		return @wp_delete_file( $temp_path );
 	}
 
 	/**
@@ -190,7 +190,7 @@ class AvifConverter {
 		if ( ! file_exists( $dest_path ) ) {
 			if ( isset( $saved['path'] ) && file_exists( $saved['path'] ) ) {
 				if ( copy( $saved['path'], $dest_path ) ) {
-					unlink( $saved['path'] );
+					wp_delete_file( $saved['path'] );
 				} else {
 					return new \WP_Error( 'copy_failed', 'Could not copy file to expected location' );
 				}
@@ -266,7 +266,7 @@ class AvifConverter {
 
 			if ( is_wp_error( $editor ) ) {
 				error_log( 'AI Media SEO: wp_get_image_editor failed: ' . $editor->get_error_message() );
-				unlink( $temp_avif );
+				wp_delete_file( $temp_avif );
 				return false;
 			}
 
@@ -275,7 +275,7 @@ class AvifConverter {
 
 			if ( is_wp_error( $saved ) ) {
 				error_log( 'AI Media SEO: Image editor save failed: ' . $saved->get_error_message() );
-				unlink( $temp_avif );
+				wp_delete_file( $temp_avif );
 				return false;
 			}
 
@@ -287,7 +287,7 @@ class AvifConverter {
 					$temp_jpeg = $actual_path;
 				} else {
 					error_log( "AI Media SEO: Converted JPEG file not found at {$temp_jpeg}" );
-					unlink( $temp_avif );
+					wp_delete_file( $temp_avif );
 					return false;
 				}
 			}
@@ -297,17 +297,17 @@ class AvifConverter {
 
 			if ( $jpeg_data === false ) {
 				error_log( "AI Media SEO: Failed to read converted JPEG data from {$temp_jpeg}" );
-				unlink( $temp_avif );
+				wp_delete_file( $temp_avif );
 				if ( file_exists( $temp_jpeg ) ) {
-					unlink( $temp_jpeg );
+					wp_delete_file( $temp_jpeg );
 				}
 				return false;
 			}
 
 			// Cleanup temp files.
-			unlink( $temp_avif );
+			wp_delete_file( $temp_avif );
 			if ( file_exists( $temp_jpeg ) ) {
-				unlink( $temp_jpeg );
+				wp_delete_file( $temp_jpeg );
 			}
 
 			return $jpeg_data;
@@ -315,7 +315,7 @@ class AvifConverter {
 		} catch ( \Exception $e ) {
 			error_log( 'AI Media SEO: Exception in convert_avif_data_to_jpeg: ' . $e->getMessage() );
 			if ( file_exists( $temp_avif ) ) {
-				unlink( $temp_avif );
+				wp_delete_file( $temp_avif );
 			}
 			return false;
 		}
@@ -345,7 +345,7 @@ class AvifConverter {
 
 		foreach ( $files as $file ) {
 			if ( filemtime( $file ) < time() - $max_age ) {
-				if ( @unlink( $file ) ) {
+				if ( @wp_delete_file( $file ) ) {
 					$deleted++;
 				}
 			}

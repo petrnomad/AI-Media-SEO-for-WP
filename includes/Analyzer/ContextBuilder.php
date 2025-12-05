@@ -413,7 +413,7 @@ class ContextBuilder {
 
 			// Timestamp.
 			if ( ! empty( $exif['created_timestamp'] ) ) {
-				$context['photo_date'] = date( 'Y-m-d', $exif['created_timestamp'] );
+				$context['photo_date'] = gmdate( 'Y-m-d', $exif['created_timestamp'] );
 			}
 
 			// Copyright.

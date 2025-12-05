@@ -78,20 +78,20 @@ class GoogleProvider extends AbstractProvider {
 	public function analyze( int $attachment_id, string $language, array $context ): array {
 		try {
 			if ( empty( $this->api_key ) ) {
-				throw new \Exception( __( 'Google API key is not configured.', 'ai-media-seo' ) );
+				throw new \Exception( esc_html( __( 'Google API key is not configured.', 'ai-media-seo' ) ) );
 			}
 
 			// Get image URL (from AbstractProvider).
 			$image_url = $this->get_image_url( $attachment_id );
 			if ( ! $image_url ) {
-				throw new \Exception( __( 'Could not get image URL.', 'ai-media-seo' ) );
+				throw new \Exception( esc_html( __( 'Could not get image URL.', 'ai-media-seo' ) ) );
 			}
 
 			// Get image data as base64 (from ImageDataHelper).
 			// Note: Google uses 'mime_type' key instead of 'media_type'.
 			$image_data = \AIMediaSEO\Utilities\ImageDataHelper::get_image_base64( $image_url, 'mime_type', 'Google' );
 			if ( ! $image_data ) {
-				throw new \Exception( __( 'Could not load image data.', 'ai-media-seo' ) );
+				throw new \Exception( esc_html( __( 'Could not load image data.', 'ai-media-seo' ) ) );
 			}
 
 			// Build prompt (from AbstractProvider).
@@ -176,7 +176,7 @@ class GoogleProvider extends AbstractProvider {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new \Exception( $response->get_error_message() );
+			throw new \Exception( esc_html( $response->get_error_message() ) );
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );
@@ -187,7 +187,7 @@ class GoogleProvider extends AbstractProvider {
 			$error_message = $data['error']['message'] ?? 'Unknown error';
 			$full_error = "Google API error ({$status_code}): {$error_message}";
 
-			throw new \Exception( $full_error );
+			throw new \Exception( esc_html( $full_error ) );
 		}
 
 		return $data;
@@ -203,7 +203,7 @@ class GoogleProvider extends AbstractProvider {
 	 */
 	private function parse_response( array $response ): array {
 		if ( empty( $response['candidates'][0]['content']['parts'][0]['text'] ) ) {
-			throw new \Exception( __( 'Invalid response from Google API.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Invalid response from Google API.', 'ai-media-seo' ) ) );
 		}
 
 		$text = $response['candidates'][0]['content']['parts'][0]['text'];
@@ -218,12 +218,12 @@ class GoogleProvider extends AbstractProvider {
 		$metadata = json_decode( $json_str, true );
 
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
-			throw new \Exception( __( 'Failed to parse JSON response.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Failed to parse JSON response.', 'ai-media-seo' ) ) );
 		}
 
 		// Validate required fields.
 		if ( empty( $metadata['alt'] ) ) {
-			throw new \Exception( __( 'Missing ALT text in response.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Missing ALT text in response.', 'ai-media-seo' ) ) );
 		}
 
 		// Ensure keywords is array.
@@ -268,11 +268,11 @@ class GoogleProvider extends AbstractProvider {
 	 */
 	public function validate_config(): bool {
 		if ( empty( $this->api_key ) ) {
-			throw new \Exception( __( 'Google API key is required.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Google API key is required.', 'ai-media-seo' ) ) );
 		}
 
 		if ( empty( $this->model ) ) {
-			throw new \Exception( __( 'Model is required.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Model is required.', 'ai-media-seo' ) ) );
 		}
 
 		return true;
@@ -311,7 +311,7 @@ class GoogleProvider extends AbstractProvider {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new \Exception( $response->get_error_message() );
+			throw new \Exception( esc_html( $response->get_error_message() ) );
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );

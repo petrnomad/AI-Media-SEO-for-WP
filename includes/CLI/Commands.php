@@ -576,7 +576,7 @@ class Commands {
 		$last_sync = get_option( 'ai_media_pricing_last_sync' );
 		if ( $last_sync ) {
 			\WP_CLI::line( '' );
-			\WP_CLI::line( sprintf( 'Last sync: %s', date( 'Y-m-d H:i:s', $last_sync ) ) );
+			\WP_CLI::line( sprintf( 'Last sync: %s', gmdate( 'Y-m-d H:i:s', $last_sync ) ) );
 		}
 	}
 }

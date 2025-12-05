@@ -73,13 +73,13 @@ class OpenAIProvider extends AbstractProvider {
 	public function analyze( int $attachment_id, string $language, array $context ): array {
 		try {
 			if ( empty( $this->api_key ) ) {
-				throw new Exception( __( 'OpenAI API key is not configured.', 'ai-media-seo' ) );
+				throw new Exception( __( 'OpenAI API key is not configured.', 'ai-media-seo' ) ) );
 			}
 
 			// Get image URL (from AbstractProvider).
 			$image_url = $this->get_image_url( $attachment_id );
 			if ( ! $image_url ) {
-				throw new Exception( __( 'Failed to get image URL.', 'ai-media-seo' ) );
+				throw new Exception( __( 'Failed to get image URL.', 'ai-media-seo' ) ) );
 			}
 
 			// Build prompt (from AbstractProvider).
@@ -130,7 +130,7 @@ class OpenAIProvider extends AbstractProvider {
 		// Get image data as base64 (works for local and remote URLs).
 		$image_data = \AIMediaSEO\Utilities\ImageDataHelper::get_image_base64( $image_url, 'media_type', 'OpenAI' );
 		if ( ! $image_data ) {
-			throw new Exception( __( 'Could not load image data.', 'ai-media-seo' ) );
+			throw new Exception( __( 'Could not load image data.', 'ai-media-seo' ) ) );
 		}
 
 		// Create data URI for OpenAI (supports base64).
@@ -231,7 +231,7 @@ class OpenAIProvider extends AbstractProvider {
 	 */
 	private function parse_response( array $response ): array {
 		if ( ! isset( $response['choices'][0]['message']['content'] ) ) {
-			throw new Exception( __( 'Invalid API response structure.', 'ai-media-seo' ) );
+			throw new Exception( __( 'Invalid API response structure.', 'ai-media-seo' ) ) );
 		}
 
 		$content = trim( $response['choices'][0]['message']['content'] );
@@ -300,11 +300,11 @@ class OpenAIProvider extends AbstractProvider {
 	 */
 	public function validate_config(): bool {
 		if ( empty( $this->api_key ) ) {
-			throw new Exception( __( 'API key is required.', 'ai-media-seo' ) );
+			throw new Exception( __( 'API key is required.', 'ai-media-seo' ) ) );
 		}
 
 		if ( strlen( $this->api_key ) < 20 ) {
-			throw new Exception( __( 'API key appears to be invalid.', 'ai-media-seo' ) );
+			throw new Exception( __( 'API key appears to be invalid.', 'ai-media-seo' ) ) );
 		}
 
 		return true;
@@ -327,7 +327,7 @@ class OpenAIProvider extends AbstractProvider {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new Exception( $response->get_error_message() );
+			throw new Exception( $response->get_error_message() ) );
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );

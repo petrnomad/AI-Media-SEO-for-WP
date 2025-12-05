@@ -454,7 +454,7 @@ class SettingsController extends WP_REST_Controller {
 			throw new \Exception(
 				sprintf(
 					'Quality weights must total 100%%. Current total: %d%%',
-					round( $total * 100 )
+					esc_html( (string) round( $total * 100 ) )
 				)
 			);
 		}

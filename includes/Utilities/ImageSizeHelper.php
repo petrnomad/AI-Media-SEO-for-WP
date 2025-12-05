@@ -240,7 +240,7 @@ class ImageSizeHelper {
 				// AVIF not supported - throw clear error.
 				error_log( 'AI Media SEO: AVIF conversion not supported on this server. Library: ' . $support['library'] );
 				throw new \Exception(
-					__( 'AVIF format detected but server does not support AVIF conversion. Please install GD with AVIF support or use ImageMagick with AVIF support.', 'ai-media-seo' )
+					esc_html( __( 'AVIF format detected but server does not support AVIF conversion. Please install GD with AVIF support or use ImageMagick with AVIF support.', 'ai-media-seo' ) )
 				);
 			}
 
@@ -263,7 +263,7 @@ class ImageSizeHelper {
 			// AVIF konverze selhala - throw error instead of returning AVIF URL.
 			error_log( 'AI Media SEO: AVIF temp file creation failed for attachment ' . $attachment_id );
 			throw new \Exception(
-				__( 'Failed to convert AVIF image to JPEG. The image could not be processed.', 'ai-media-seo' )
+				esc_html( __( 'Failed to convert AVIF image to JPEG. The image could not be processed.', 'ai-media-seo' ) )
 			);
 		}
 

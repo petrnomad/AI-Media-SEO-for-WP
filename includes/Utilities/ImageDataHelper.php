@@ -81,7 +81,7 @@ class ImageDataHelper {
 			}
 
 			// translators: %s is the provider name (e.g., Anthropic, Google)
-			throw new \Exception( sprintf( __( 'Failed to analyze image: %s API does not support AVIF format and conversion failed. Please use JPEG, PNG or WebP.', 'ai-media-seo' ), $provider_name ) );
+			throw new \Exception( esc_html( sprintf( __( 'Failed to analyze image: %s API does not support AVIF format and conversion failed. Please use JPEG, PNG or WebP.', 'ai-media-seo' ), $provider_name ) ) );
 		}
 
 		return array(

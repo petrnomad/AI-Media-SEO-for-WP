@@ -39,31 +39,26 @@ class MinimalPromptBuilder extends PromptBuilder {
 	 * @return string Template string with placeholders.
 	 */
 	protected function get_default_template(): string {
-		return <<<'TEMPLATE'
-You are a {{ai_role}} analyzing images for WordPress websites.
-
-CONTEXT:
-{{#if site_context}}Site: {{site_context}}
-{{/if}}{{#if post_title}}Page: {{post_title}}
-{{/if}}{{#if categories}}Categories: {{categories}}
-{{/if}}{{#if tags}}Tags: {{tags}}
-{{/if}}
-
-IMAGE:
-{{#if filename_hint}}File: {{filename_hint}}
-{{/if}}{{#if orientation}}Format: {{orientation}}
-{{/if}}
-
-IMPORTANT: Generate ALL content in {{language_name}} language.
-
-Task: Generate SEO metadata:
-1. ALT ({{alt_max_length}} chars max) - page-relevant, accessible, in {{language_name}}
-2. Caption (1-2 sentences) - contextual, in {{language_name}}
-3. Title (3-6 words) - SEO-focused, in {{language_name}}
-4. Keywords (3-6 terms) - match page tags/categories, in {{language_name}}
-
-Respond ONLY with JSON:
-{"alt":"...","caption":"...","title":"...","keywords":["..."],"score":0.95}
-TEMPLATE;
+		$template = 'You are a {{ai_role}} analyzing images for WordPress websites.' . "\n\n";
+		$template .= 'CONTEXT:' . "\n";
+		$template .= '{{#if site_context}}Site: {{site_context}}' . "\n";
+		$template .= '{{/if}}{{#if post_title}}Page: {{post_title}}' . "\n";
+		$template .= '{{/if}}{{#if categories}}Categories: {{categories}}' . "\n";
+		$template .= '{{/if}}{{#if tags}}Tags: {{tags}}' . "\n";
+		$template .= '{{/if}}' . "\n\n";
+		$template .= 'IMAGE:' . "\n";
+		$template .= '{{#if filename_hint}}File: {{filename_hint}}' . "\n";
+		$template .= '{{/if}}{{#if orientation}}Format: {{orientation}}' . "\n";
+		$template .= '{{/if}}' . "\n\n";
+		$template .= 'IMPORTANT: Generate ALL content in {{language_name}} language.' . "\n\n";
+		$template .= 'Task: Generate SEO metadata:' . "\n";
+		$template .= '1. ALT ({{alt_max_length}} chars max) - page-relevant, accessible, in {{language_name}}' . "\n";
+		$template .= '2. Caption (1-2 sentences) - contextual, in {{language_name}}' . "\n";
+		$template .= '3. Title (3-6 words) - SEO-focused, in {{language_name}}' . "\n";
+		$template .= '4. Keywords (3-6 terms) - match page tags/categories, in {{language_name}}' . "\n\n";
+		$template .= 'Respond ONLY with JSON:' . "\n";
+		$template .= '{"alt":"...","caption":"...","title":"...","keywords":["..."],"score":0.95}';
+		
+		return $template;
 	}
 }

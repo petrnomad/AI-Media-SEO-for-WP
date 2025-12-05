@@ -241,13 +241,20 @@ class Deactivator {
 			if ( ! empty( $files ) ) {
 				foreach ( $files as $file ) {
 					if ( is_file( $file ) ) {
-						@unlink( $file );
+						@wp_delete_file( $file );
 					}
 				}
 			}
 
-			// Delete directory.
-			@rmdir( $temp_dir );
+			// Delete directory using WP_Filesystem.
+			global $wp_filesystem;
+			if ( empty( $wp_filesystem ) ) {
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+				WP_Filesystem();
+			}
+			if ( ! empty( $wp_filesystem ) ) {
+				$wp_filesystem->rmdir( $temp_dir );
+			}
 		}
 	}
 }

@@ -176,7 +176,7 @@ function ai_media_seo_autoloader( $class ) {
  *
  * @since 1.0.0
  */
-function activate_ai_media_seo() {
+function ai_media_seo_activate() {
 	require_once AI_MEDIA_SEO_PATH . 'includes/Core/Activator.php';
 	AIMediaSEO\Core\Activator::activate();
 }
@@ -186,23 +186,23 @@ function activate_ai_media_seo() {
  *
  * @since 1.0.0
  */
-function deactivate_ai_media_seo() {
+function ai_media_seo_deactivate() {
 	require_once AI_MEDIA_SEO_PATH . 'includes/Core/Deactivator.php';
 	AIMediaSEO\Core\Deactivator::deactivate();
 }
 
-register_activation_hook( __FILE__, 'activate_ai_media_seo' );
-register_deactivation_hook( __FILE__, 'deactivate_ai_media_seo' );
+register_activation_hook( __FILE__, 'ai_media_seo_activate' );
+register_deactivation_hook( __FILE__, 'ai_media_seo_deactivate' );
 
 /**
  * Initialize the plugin.
  *
  * @since 1.0.0
  */
-function run_ai_media_seo() {
+function ai_media_seo_run() {
 	$plugin = new AIMediaSEO\Core\Plugin();
 	$plugin->run();
 }
 
 // Start the plugin.
-run_ai_media_seo();
+ai_media_seo_run();

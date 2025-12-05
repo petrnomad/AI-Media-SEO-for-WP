@@ -85,19 +85,19 @@ class AnthropicProvider extends AbstractProvider {
 	public function analyze( int $attachment_id, string $language, array $context ): array {
 		try {
 			if ( empty( $this->api_key ) ) {
-				throw new \Exception( __( 'Anthropic API key is not configured.', 'ai-media-seo' ) );
+				throw new \Exception( esc_html( __( 'Anthropic API key is not configured.', 'ai-media-seo' ) ) );
 			}
 
 			// Get image URL (from AbstractProvider).
 			$image_url = $this->get_image_url( $attachment_id );
 			if ( ! $image_url ) {
-				throw new \Exception( __( 'Could not get image URL.', 'ai-media-seo' ) );
+				throw new \Exception( esc_html( __( 'Could not get image URL.', 'ai-media-seo' ) ) );
 			}
 
 			// Get image data as base64 (from ImageDataHelper).
 			$image_data = \AIMediaSEO\Utilities\ImageDataHelper::get_image_base64( $image_url, 'media_type', 'Anthropic' );
 			if ( ! $image_data ) {
-				throw new \Exception( __( 'Could not load image data.', 'ai-media-seo' ) );
+				throw new \Exception( esc_html( __( 'Could not load image data.', 'ai-media-seo' ) ) );
 			}
 
 			// Build prompt (from AbstractProvider).
@@ -182,7 +182,7 @@ class AnthropicProvider extends AbstractProvider {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new \Exception( $response->get_error_message() );
+			throw new \Exception( esc_html( $response->get_error_message() ) );
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );
@@ -203,7 +203,7 @@ class AnthropicProvider extends AbstractProvider {
 				$full_error .= " | Raw response: " . substr( $body, 0, 500 );
 			}
 
-			throw new \Exception( $full_error );
+			throw new \Exception( esc_html( $full_error ) );
 		}
 
 		return $data;
@@ -223,7 +223,7 @@ class AnthropicProvider extends AbstractProvider {
 			if ( isset( $response['content'] ) ) {
 				$debug_info .= ' | Content: ' . wp_json_encode( $response['content'] );
 			}
-			throw new \Exception( __( 'Invalid response from Anthropic API.', 'ai-media-seo' ) . ' | ' . $debug_info );
+			throw new \Exception( esc_html( __( 'Invalid response from Anthropic API.', 'ai-media-seo' ) . ' | ' . $debug_info ) );
 		}
 
 		$text = $response['content'][0]['text'];
@@ -238,12 +238,12 @@ class AnthropicProvider extends AbstractProvider {
 		$metadata = json_decode( $json_str, true );
 
 		if ( json_last_error() !== JSON_ERROR_NONE ) {
-			throw new \Exception( __( 'Failed to parse JSON response.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Failed to parse JSON response.', 'ai-media-seo' ) ) );
 		}
 
 		// Validate required fields.
 		if ( empty( $metadata['alt'] ) ) {
-			throw new \Exception( __( 'Missing ALT text in response.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Missing ALT text in response.', 'ai-media-seo' ) ) );
 		}
 
 		// Ensure keywords is array.
@@ -268,11 +268,11 @@ class AnthropicProvider extends AbstractProvider {
 	 */
 	public function validate_config(): bool {
 		if ( empty( $this->api_key ) ) {
-			throw new \Exception( __( 'Anthropic API key is required.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Anthropic API key is required.', 'ai-media-seo' ) ) );
 		}
 
 		if ( empty( $this->model ) ) {
-			throw new \Exception( __( 'Model is required.', 'ai-media-seo' ) );
+			throw new \Exception( esc_html( __( 'Model is required.', 'ai-media-seo' ) ) );
 		}
 
 		return true;
@@ -311,7 +311,7 @@ class AnthropicProvider extends AbstractProvider {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new \Exception( $response->get_error_message() );
+			throw new \Exception( esc_html( $response->get_error_message() ) );
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );

@@ -118,28 +118,16 @@ class Plugin {
 	/**
 	 * Define the locale for this plugin for internationalization.
 	 *
+	 * Note: Since WordPress 4.6, load_plugin_textdomain() is no longer needed
+	 * for plugins hosted on WordPress.org. WordPress automatically loads
+	 * translations from translate.wordpress.org.
+	 *
 	 * @since  1.0.0
 	 * @access private
 	 */
 	private function set_locale() {
-		$this->loader->add_action(
-			'plugins_loaded',
-			$this,
-			'load_plugin_textdomain'
-		);
-	}
-
-	/**
-	 * Load the plugin text domain for translation.
-	 *
-	 * @since 1.0.0
-	 */
-	public function load_plugin_textdomain() {
-		load_plugin_textdomain(
-			'ai-media-seo',
-			false,
-			dirname( AI_MEDIA_SEO_BASENAME ) . '/languages/'
-		);
+		// Translations are automatically loaded by WordPress for plugins on WordPress.org.
+		// No action needed here.
 	}
 
 	/**
